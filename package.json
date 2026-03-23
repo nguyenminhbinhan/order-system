@@ -1,0 +1,13 @@
+{
+  "name": "restaurant-order-system",
+  "version": "1.0.0",
+  "description": "Unified runner for Backend (NestJS) and Frontend (Vue)",
+  "scripts": {
+    "dev:backend": "cd order-system && npm run start:dev",
+    "dev:frontend": "cd order-system-frontend && npm run dev",
+    "dev:all": "concurrently -n BACKEND,FRONTEND -c green,blue --restart-tries 3 \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
