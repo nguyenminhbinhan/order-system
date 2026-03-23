@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "Order System API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"123456\",\n  \"address\": \"123 Main St\",\n  \"role\": \"admin\",\n  \"contractType\": \"monthly\"\n}"
+            },
+            "url": { "raw": "http://localhost:3000/auth/register", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": { "raw": "http://localhost:3000/auth/login", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"User 1\",\n  \"role\": \"customer\",\n  \"email\": \"user1@test.com\",\n  \"password\": \"password1\",\n  \"address\": \"Street 1\"\n}" },
+            "url": { "raw": "http://localhost:3000/users", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["users"] }
+          }
+        },
+        { "name": "Get users", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/users", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["users"] } } },
+        { "name": "Get user by id", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/users/{{userId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["users", "{{userId}}"] } } },
+        { "name": "Update user", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"User 1 Updated\",\n  \"address\": \"New Street\"\n}" }, "url": { "raw": "http://localhost:3000/users/{{userId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["users", "{{userId}}"] } } },
+        { "name": "Delete user", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/users/{{userId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["users", "{{userId}}"] } } }
+      ]
+    },
+    {
+      "name": "Tables",
+      "item": [
+        { "name": "Create table", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Table 1\",\n  \"qrCode\": \"QR-1\",\n  \"status\": \"empty\"\n}" }, "url": { "raw": "http://localhost:3000/tables", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["tables"] } } },
+        { "name": "List tables", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/tables", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["tables"] } } },
+        { "name": "Get table", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/tables/{{tableId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["tables", "{{tableId}}"] } } },
+        { "name": "Update table", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Table 1A\",\n  \"status\": \"occupied\"\n}" }, "url": { "raw": "http://localhost:3000/tables/{{tableId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["tables", "{{tableId}}"] } } },
+        { "name": "Delete table", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/tables/{{tableId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["tables", "{{tableId}}"] } } }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        { "name": "Create category", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Category A\",\n  \"sortOrder\": 1\n}" }, "url": { "raw": "http://localhost:3000/categories", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["categories"] } } },
+        { "name": "List categories", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/categories", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["categories"] } } },
+        { "name": "Get category", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/categories/{{categoryId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["categories", "{{categoryId}}"] } } },
+        { "name": "Update category", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Category B\",\n  \"sortOrder\": 2\n}" }, "url": { "raw": "http://localhost:3000/categories/{{categoryId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["categories", "{{categoryId}}"] } } },
+        { "name": "Delete category", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/categories/{{categoryId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["categories", "{{categoryId}}"] } } }
+      ]
+    },
+    {
+      "name": "Menu Items",
+      "item": [
+        { "name": "Create menu item", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Phở bò\",\n  \"description\": \"Phở bò ngon\",\n  \"price\": 120000,\n  \"userId\": \"{{userId}}\",\n  \"categoryId\": \"{{categoryId}}\"\n}" }, "url": { "raw": "http://localhost:3000/menu-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["menu-items"] } } },
+        { "name": "List menu items", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/menu-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["menu-items"] } } },
+        { "name": "Get menu item", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/menu-items/{{menuItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["menu-items", "{{menuItemId}}"] } } },
+        { "name": "Update menu item", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Phở bò đặc biệt\",\n  \"price\": 130000\n}" }, "url": { "raw": "http://localhost:3000/menu-items/{{menuItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["menu-items", "{{menuItemId}}"] } } },
+        { "name": "Delete menu item", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/menu-items/{{menuItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["menu-items", "{{menuItemId}}"] } } }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        { "name": "Create order", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tableId\": \"{{tableId}}\",\n  \"totalAmount\": 220000\n}" }, "url": { "raw": "http://localhost:3000/orders", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["orders"] } } },
+        { "name": "List orders", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/orders", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["orders"] } } },
+        { "name": "Get order", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/orders/{{orderId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["orders", "{{orderId}}"] } } },
+        { "name": "Update order", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tableId\": \"{{tableId}}\",\n  \"totalAmount\": 230000\n}" }, "url": { "raw": "http://localhost:3000/orders/{{orderId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["orders", "{{orderId}}"] } } },
+        { "name": "Delete order", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/orders/{{orderId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["orders", "{{orderId}}"] } } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        { "name": "Create payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"method\": \"cash\",\n  \"amount\": 220000,\n  \"status\": \"paid\"\n}" }, "url": { "raw": "http://localhost:3000/payments", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["payments"] } } },
+        { "name": "List payments", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/payments", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["payments"] } } },
+        { "name": "Get payment", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/payments/{{paymentId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["payments", "{{paymentId}}"] } } },
+        { "name": "Update payment", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"paid\"\n}" }, "url": { "raw": "http://localhost:3000/payments/{{paymentId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["payments", "{{paymentId}}"] } } },
+        { "name": "Delete payment", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/payments/{{paymentId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["payments", "{{paymentId}}"] } } }
+      ]
+    },
+    {
+      "name": "Option Items",
+      "item": [
+        { "name": "Create option item", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"menuId\": \"{{menuItemId}}\",\n  \"name\": \"Extra cheese\",\n  \"required\": false\n}" }, "url": { "raw": "http://localhost:3000/option-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["option-items"] } } },
+        { "name": "List option items", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/option-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["option-items"] } } },
+        { "name": "Get option item", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/option-items/{{optionItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["option-items", "{{optionItemId}}"] } } },
+        { "name": "Update option item", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Extra chili\",\n  \"required\": true\n}" }, "url": { "raw": "http://localhost:3000/option-items/{{optionItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["option-items", "{{optionItemId}}"] } } },
+        { "name": "Delete option item", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/option-items/{{optionItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["option-items", "{{optionItemId}}"] } } }
+      ]
+    },
+    {
+      "name": "Image Items",
+      "item": [
+        { "name": "Create image item", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"menuId\": \"{{menuItemId}}\",\n  \"image\": \"pho-bo-thumbnail.jpg\"\n}" }, "url": { "raw": "http://localhost:3000/image-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["image-items"] } } },
+        { "name": "List image items", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/image-items", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["image-items"] } } },
+        { "name": "Get image item", "request": { "method": "GET", "url": { "raw": "http://localhost:3000/image-items/{{imageItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["image-items", "{{imageItemId}}"] } } },
+        { "name": "Update image item", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"menuId\": \"{{menuItemId}}\",\n  \"image\": \"pho-bo-updated.jpg\"\n}" }, "url": { "raw": "http://localhost:3000/image-items/{{imageItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["image-items", "{{imageItemId}}"] } } },
+        { "name": "Delete image item", "request": { "method": "DELETE", "url": { "raw": "http://localhost:3000/image-items/{{imageItemId}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["image-items", "{{imageItemId}}"] } } }
+      ]
+    }
+  ]
+}
