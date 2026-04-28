@@ -1,0 +1,17 @@
+--- LOGGING IN AS WAITER ---
+
+[BROWSER LOG] [vite] connecting...
+
+[BROWSER LOG] [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+
+[BROWSER LOG] ≡ƒìì "user" store installed ≡ƒåò
+
+[BROWSER LOG] [vite] connected.
+
+[BROWSER LOG] [TOKEN] eyJhbGciOiJIUzI1NiIs...
+
+[BROWSER LOG] [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+
+[BROWSER LOG] [TOKEN] eyJhbGciOiJIUzI1NiIs...
+
+[BROWSER LOG] [TOKEN] eyJhbGciOiJIUzI1NiIs...

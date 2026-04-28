@@ -1,0 +1,6 @@
+Order created: 400 | undefined
+Checkout before confirm: 400 - No active session found
+Confirm status: 404 | {"success":false,"message":"Cannot PATCH /orders/undefined","statusCode":404,"timestamp":"2026-03-25T06:18:04.679Z","path":"/orders/undefined"}
+Preview status: 401 | Subtotal: undefined
+Checkout status: 400 | {"success":false,"message":"No active session found","statusCode":400,"timestamp":"2026-03-25T06:18:04.687Z","path":"/tables/1/checkout"}
+Table state after checkout: waiting_confirm

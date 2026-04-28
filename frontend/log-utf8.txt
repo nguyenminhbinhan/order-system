@@ -1,0 +1,71 @@
+﻿
+Running 1 test using 1 worker
+
+--- STARTING CUSTOMER FLOW ---
+[BROWSER LOG] debug: [vite] connecting...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: ≡ƒìì "user" store installed ≡ƒåò
+[BROWSER LOG] debug: [vite] connected.
+[BROWSER LOG] log: ≡ƒìì "menu" store installed ≡ƒåò
+[BROWSER LOG] log: ≡ƒìì "cart" store installed ≡ƒåò
+[BROWSER LOG] log: ≡ƒìì "order" store installed ≡ƒåò
+[BROWSER LOG] log: --- DEBUG: FETCHED MENU ITEMS --- [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object]
+[BROWSER LOG] log: --- DEBUG: FETCHED CATEGORIES --- [Object, Object, Object, Object]
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+--- CUSTOMER SECURED ORDER ---
+--- STARTING WAITER FLOW ---
+[BROWSER LOG] debug: [vite] connecting...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: ≡ƒìì "user" store installed ≡ƒåò
+[BROWSER LOG] debug: [vite] connected.
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+--- WAITER PREVIEWING BILL ---
+[BROWSER LOG] log: STEP 1: CLICK 1
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] log: STEP 2: API RESPONSE {tableId: 1, items: Array(1), totalAmount: 108002}
+[BROWSER LOG] log: STEP 3: SET previewData Proxy(Object)
+[BROWSER LOG] log: PRINT BILL DATA: Proxy(Object)
+[BROWSER LOG] log: STEP 4: MODAL STATE true
+--- WAITER PROCESSING PAYMENT ---
+  Γ£ÿ  1 [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification (1.5m)
+
+
+  1) [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification 
+
+    [31mTest timeout of 90000ms exceeded.[39m
+
+    Error: page.click: Test timeout of 90000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('text=Thanh to├ín')[22m
+    [2m    - locator resolved to 11 elements. Proceeding with the first one: <button class="flex-1 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">Thanh to├ín</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not visible[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not visible[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    147 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m        - element is not visible[22m
+    [2m      - retrying click action[22m
+    [2m        - waiting 500ms[22m
+
+
+      103 |     // Pay Bill
+      104 |     console.log('--- WAITER PROCESSING PAYMENT ---');
+    > 105 |     await page.click('text=Thanh to├ín');
+          |                ^
+      106 |     
+      107 |     // Confirm payment inside Checkout Modal (If active)
+      108 |     try {
+        at C:\Users\anngu\Downloads\order-system\frontend\tests\e2e.spec.ts:105:16
+
+    Error Context: test-results\e2e-FULL-SYSTEM-AUTO-DEBUG-fab79-plete-Lifecyle-Verification-chromium\error-context.md
+
+  1 failed
+    [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification 

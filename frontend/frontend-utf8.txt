@@ -1,0 +1,91 @@
+﻿
+Running 1 test using 1 worker
+
+--- STARTING CUSTOMER FLOW ---
+[BROWSER LOG] debug: [vite] connecting...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: ≡ƒìì "user" store installed ≡ƒåò
+[BROWSER LOG] debug: [vite] connected.
+[BROWSER LOG] log: ≡ƒìì "menu" store installed ≡ƒåò
+[BROWSER LOG] log: ≡ƒìì "cart" store installed ≡ƒåò
+[BROWSER LOG] log: ≡ƒìì "order" store installed ≡ƒåò
+[BROWSER LOG] log: --- DEBUG: FETCHED MENU ITEMS --- [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object]
+[BROWSER LOG] log: --- DEBUG: FETCHED CATEGORIES --- [Object, Object, Object, Object]
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+--- CUSTOMER SECURED ORDER ---
+--- STARTING WAITER FLOW ---
+[BROWSER LOG] debug: [vite] connecting...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: ≡ƒìì "user" store installed ≡ƒåò
+[BROWSER LOG] debug: [vite] connected.
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] warning: [Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+--- WAITER PREVIEWING BILL ---
+[BROWSER LOG] log: CLICK PREVIEW 1
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] log: API RESPONSE {tableId: 1, items: Array(1), totalAmount: 108002}
+[BROWSER LOG] log: STEP 3: SET previewData Proxy(Object)
+[BROWSER LOG] log: PRINT BILL DATA: Proxy(Object)
+[BROWSER LOG] log: STEP 4: MODAL STATE true
+--- WAITER PROCESSING PAYMENT ---
+[BROWSER LOG] log: CLICK CHECKOUT 1
+[BROWSER LOG] log: [TOKEN] eyJhbGciOiJIUzI1NiIs...
+[BROWSER LOG] error: Failed to load resource: the server responded with a status of 400 (Bad Request)
+[BROWSER LOG] warning: [Vue warn]: Unhandled error during execution of setup function 
+  at <Anonymous toastProps= {containerId: top-right, clearOnUrlChange: true, disabledEnterTransition: false, dangerouslyHTMLString: false, multiple: true} closeToast=fn<F> data= {}  ... > 
+  at <ToastItem key="3uirjjs" dangerouslyHTMLString=false multiple=true  ... > 
+  at <ToastifyContainer dangerouslyHTMLString=false multiple=true position="top-right"  ... >
+[BROWSER LOG] warning: [Vue warn]: Unhandled error during execution of component update 
+  at <ToastifyContainer dangerouslyHTMLString=false multiple=true position="top-right"  ... >
+node.exe : [PAGE 
+ERROR] require is not 
+defined
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : 
+NotSpecified: ([PAGE   
+  ERROR] require is 
+not     
+defined:String) [], 
+Rem    oteException
+    + 
+FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+--- WAITER RESETTING CACHE ---
+  Γ£ÿ  1 [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification (1.5m)
+
+
+  1) [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification 
+
+    [31mTest timeout of 90000ms exceeded.[39m
+
+    Error: page.click: Test timeout of 90000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('text=Reset b├án')[22m
+
+
+      107 |     // Reset Table
+      108 |     console.log('--- WAITER RESETTING CACHE ---');
+    > 109 |     await page.click('text=Reset b├án');
+          |                ^
+      110 |     try {
+      111 |         const resetConfirm = page.locator('button.bg-red-600').filter({ hasText: '─Éß╗ông ├╜' });
+      112 |         if (await resetConfirm.isVisible({ timeout: 2000 })) {
+        at C:\Users\anngu\Downloads\order-system\frontend\tests\e2e.spec.ts:109:16
+
+    Error Context: test-results\e2e-FULL-SYSTEM-AUTO-DEBUG-fab79-plete-Lifecyle-Verification-chromium\error-context.md
+
+  1 failed
+    [chromium] ΓÇ║ tests\e2e.spec.ts:5:3 ΓÇ║ FULL SYSTEM AUTO DEBUG LOOP ΓÇ║ Customer -> Waiter -> Admin Complete Lifecyle Verification 
