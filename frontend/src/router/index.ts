@@ -18,6 +18,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/customer/CustomerView.vue'),
   },
   {
+    // Production QR route: /table/:token → resolves token to tableId
+    path: '/table/:token',
+    name: 'TableByToken',
+    component: () => import('@/views/customer/CustomerView.vue'),
+  },
+  {
     path: '/customer/cart',
     name: 'CustomerCart',
     component: () => import('@/views/customer/CartView.vue'),
@@ -26,6 +32,11 @@ const routes: RouteRecordRaw[] = [
     path: '/customer/tracking/:id',
     name: 'OrderTracking',
     component: () => import('@/views/customer/OrderTrackingView.vue'),
+  },
+  {
+    path: '/payment/:paymentId',
+    name: 'Payment',
+    component: () => import('@/views/customer/PaymentView.vue'),
   },
   {
     path: '/admin',

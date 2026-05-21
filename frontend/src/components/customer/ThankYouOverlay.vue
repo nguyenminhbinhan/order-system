@@ -1,176 +1,233 @@
 <template>
   <Transition name="thankyou">
-    <div v-if="visible" class="fixed inset-0 z-[999] flex items-center justify-center bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900">
-      <!-- Animated particles background -->
-      <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div v-for="i in 12" :key="i" class="particle" :style="particleStyle(i)"></div>
-      </div>
+    <div v-if="visible" class="fixed inset-0 z-[999] flex flex-col bg-white dark:bg-slate-950 overflow-y-auto">
+      
+      <!-- Receipt Content -->
+      <div class="flex-1 max-w-lg mx-auto w-full p-6">
+        
+        <!-- Header: Thank You -->
+        <div class="text-center pt-6 pb-8">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full mb-5">
+            <span class="material-symbols-outlined text-4xl text-emerald-500" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+          </div>
+          <h1 class="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+            Cảm ơn quý khách đã ghé quán Bình An!
+          </h1>
+          <p class="text-slate-500 text-sm">Thanh toán đã hoàn tất</p>
+        </div>
 
-      <div class="relative z-10 flex flex-col items-center text-center px-6 max-w-md mx-auto">
-        <!-- Success icon with pulse -->
-        <div class="relative mb-8">
-          <div v-if="!isTerminal" class="absolute inset-0 bg-white/20 rounded-full animate-ping" style="animation-duration: 2s;"></div>
-          <div class="relative size-28 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/30">
-            <span class="material-symbols-outlined text-6xl text-white" style="font-variation-settings: 'FILL' 1;">
-              {{ isTerminal ? 'sentiment_satisfied' : 'check_circle' }}
-            </span>
+        <!-- Restaurant Info Card -->
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl p-5 mb-6 border border-slate-100 dark:border-slate-800">
+          <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Thông tin quán</h3>
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary text-[18px]">restaurant</span>
+              <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Quán ăn Bình An</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span>
+              <span class="text-sm text-slate-600 dark:text-slate-400">70 Hoàng Dư Khương, Cẩm Lệ, Đà Nẵng</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-blue-500 text-[18px]">chat</span>
+              <span class="text-sm text-slate-600 dark:text-slate-400">Zalo: <span class="font-bold text-slate-800 dark:text-slate-200">0935124062</span></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-red-500 text-[18px]">mail</span>
+              <span class="text-sm text-slate-600 dark:text-slate-400 break-all">annguyen020403@gmail.com</span>
+            </div>
           </div>
         </div>
 
-        <!-- Main text -->
-        <h1 class="text-3xl font-black text-white mb-3 tracking-tight">
-          Cảm ơn quý khách!
-        </h1>
-        <p class="text-lg text-emerald-200 font-medium mb-2">
-          Thanh toán đã hoàn tất
-        </p>
-        <p class="text-emerald-300/80 text-sm mb-10">
-          Hẹn gặp lại quý khách lần sau 🎉
-        </p>
+        <!-- Divider with receipt dots -->
+        <div class="flex items-center gap-0 mb-6 -mx-6">
+          <div class="w-4 h-4 bg-white dark:bg-slate-950 rounded-full -ml-2 border-r border-slate-200 dark:border-slate-800"></div>
+          <div class="flex-1 border-t-2 border-dashed border-slate-200 dark:border-slate-800"></div>
+          <div class="w-4 h-4 bg-white dark:bg-slate-950 rounded-full -mr-2 border-l border-slate-200 dark:border-slate-800"></div>
+        </div>
 
-        <!-- Countdown circle (only during countdown phase) -->
-        <template v-if="!isTerminal">
-          <div class="relative mb-8">
-            <svg class="size-20 -rotate-90" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="36" stroke="rgba(255,255,255,0.15)" stroke-width="4" fill="none" />
-              <circle 
-                cx="40" cy="40" r="36" 
-                stroke="white" 
-                stroke-width="4" 
-                fill="none"
-                stroke-linecap="round"
-                :stroke-dasharray="circumference"
-                :stroke-dashoffset="dashOffset"
-                style="transition: stroke-dashoffset 1s linear;"
-              />
-            </svg>
-            <span class="absolute inset-0 flex items-center justify-center text-2xl font-black text-white">
-              {{ countdown }}
-            </span>
+        <!-- Order History -->
+        <div class="mb-8">
+          <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px]">receipt_long</span>
+            Chi tiết đơn hàng
+          </h3>
+
+          <div v-if="orderHistory.length === 0" class="text-center py-6">
+            <p class="text-slate-400 text-sm">Không có dữ liệu đơn hàng</p>
           </div>
 
-          <p class="text-emerald-200/60 text-xs mb-6">
-            Phiên sẽ kết thúc sau {{ countdown }} giây...
-          </p>
-        </template>
+          <div v-else class="space-y-4">
+            <div v-for="(orders, time) in groupedByTime" :key="time">
+              <!-- Time marker -->
+              <div class="flex items-center gap-2 mb-2">
+                <span class="material-symbols-outlined text-slate-400 text-[12px]">schedule</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ time }}</span>
+                <div class="flex-1 h-px bg-slate-100 dark:bg-slate-800"></div>
+              </div>
 
-        <!-- Terminal state: session fully ended -->
-        <template v-else>
-          <div class="mb-8 px-6 py-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
-            <p class="text-emerald-100 text-sm font-medium mb-1">Phiên đã kết thúc</p>
-            <p class="text-emerald-300/70 text-xs">Quét mã QR trên bàn để bắt đầu phiên mới</p>
+              <!-- Items in this order group -->
+              <div v-for="order in orders" :key="order.id" class="space-y-1.5">
+                <div v-for="item in order.items" :key="item.id" class="flex justify-between items-start py-1.5">
+                  <div class="flex-1 pr-3">
+                    <p class="text-sm font-medium text-slate-800 dark:text-slate-200">
+                      <span class="text-slate-400 mr-1">{{ item.quantity }}×</span>
+                      {{ item.name || item.menuItem?.name || 'Món' }}
+                    </p>
+                    <p v-if="item.note" class="text-xs text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[11px]">sticky_note_2</span>
+                      {{ item.note }}
+                    </p>
+                  </div>
+                  <span class="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    {{ formatCurrency(Number(item.price) * item.quantity) }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        </template>
 
-        <!-- Action button -->
-        <button 
-          @click="handleRestart"
-          class="px-8 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-xl font-bold text-sm border border-white/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-        >
-          <span class="material-symbols-outlined text-[18px]">qr_code_scanner</span>
-          {{ isTerminal ? 'Quét lại để gọi món' : 'Đặt món lại' }}
-        </button>
+          <!-- Total -->
+          <div class="mt-4 pt-4 border-t-2 border-dashed border-slate-200 dark:border-slate-800 flex justify-between items-center">
+            <span class="text-lg font-black text-slate-900 dark:text-white">Tổng cộng</span>
+            <span class="text-xl font-black text-primary">{{ formatCurrency(totalAmount) }}</span>
+          </div>
+        </div>
+
+        <!-- Session ended note -->
+        <div class="text-center pb-8">
+          <p class="text-xs text-slate-400">Hẹn gặp lại quý khách lần sau! 🎉</p>
+        </div>
       </div>
+
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 
 const props = defineProps<{
   visible: boolean;
-  duration?: number;
+  orders?: any[];
 }>();
 
 const emit = defineEmits<{
   (e: 'complete'): void;
-  (e: 'restart'): void;
 }>();
 
-const TOTAL_SECONDS = props.duration || 8;
-const countdown = ref(TOTAL_SECONDS);
-const isTerminal = ref(false);
-const circumference = 2 * Math.PI * 36; // r=36
+const STORAGE_KEY = 'binh_an_order_history';
 
-const dashOffset = computed(() => {
-  const progress = countdown.value / TOTAL_SECONDS;
-  return circumference * (1 - progress);
+// ===== ORDER HISTORY =====
+const orderHistory = ref<any[]>([]);
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('vi-VN').format(value || 0) + ' ₫';
+};
+
+const formatTime = (date: string) => {
+  return new Date(date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+};
+
+const totalAmount = computed(() => {
+  return orderHistory.value.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 });
 
-let timer: ReturnType<typeof setInterval> | null = null;
+const groupedByTime = computed(() => {
+  const groups: Record<string, any[]> = {};
+  const sorted = [...orderHistory.value].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  sorted.forEach(order => {
+    const time = formatTime(order.createdAt);
+    if (!groups[time]) groups[time] = [];
+    groups[time].push(order);
+  });
+  return groups;
+});
 
-const startCountdown = () => {
-  countdown.value = TOTAL_SECONDS;
-  isTerminal.value = false;
-  timer = setInterval(() => {
-    countdown.value--;
-    if (countdown.value <= 0) {
-      if (timer) clearInterval(timer);
-      // Enter terminal state instead of redirecting
-      isTerminal.value = true;
-      emit('complete'); // Parent uses this to clear session state, NOT to redirect
+// Save order history to localStorage for persistence
+const saveToLocalStorage = (orders: any[]) => {
+  try {
+    const record = {
+      timestamp: new Date().toISOString(),
+      tableId: orders[0]?.tableId || null,
+      orders: orders.map(o => ({
+        id: o.id,
+        createdAt: o.createdAt,
+        totalAmount: o.totalAmount,
+        status: o.status,
+        items: o.items?.map((i: any) => ({
+          id: i.id,
+          name: i.name || i.menuItem?.name,
+          quantity: i.quantity,
+          price: i.price,
+          note: i.note,
+        })) || []
+      })),
+      total: orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
+    };
+
+    // Append to existing history (keep last 20 sessions)
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    existing.unshift(record);
+    if (existing.length > 20) existing.length = 20;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch (e) {
+    console.warn('Failed to save order history to localStorage', e);
+  }
+};
+
+const loadLatestFromLocalStorage = () => {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (existing.length > 0) {
+      const latestRecord = existing[0];
+      orderHistory.value = latestRecord.orders || [];
     }
-  }, 1000);
+  } catch (e) {
+    console.warn('Failed to load order history from localStorage', e);
+  }
 };
 
-const handleRestart = () => {
-  if (timer) clearInterval(timer);
-  emit('restart');
-};
-
-const particleStyle = (i: number) => ({
-  left: `${Math.random() * 100}%`,
-  top: `${Math.random() * 100}%`,
-  width: `${4 + Math.random() * 8}px`,
-  height: `${4 + Math.random() * 8}px`,
-  animationDelay: `${Math.random() * 3}s`,
-  animationDuration: `${3 + Math.random() * 4}s`,
+// When overlay becomes visible, load order data and save
+watch(() => props.visible, (val) => {
+  if (val) {
+    if (props.orders && props.orders.length > 0) {
+      orderHistory.value = props.orders;
+      saveToLocalStorage(props.orders);
+    } else {
+      loadLatestFromLocalStorage();
+    }
+    // Emit complete to parent to clear session state
+    // NO countdown, NO auto-redirect
+    emit('complete');
+  }
 });
 
 onMounted(() => {
-  if (props.visible) startCountdown();
-});
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
-});
-
-watch(() => props.visible, (val) => {
-  if (val) {
-    startCountdown();
-  } else {
-    if (timer) clearInterval(timer);
-    isTerminal.value = false;
+  if (props.visible) {
+    if (props.orders && props.orders.length > 0) {
+      orderHistory.value = props.orders;
+    } else {
+      loadLatestFromLocalStorage();
+    }
   }
 });
 </script>
 
 <style scoped>
 .thankyou-enter-active {
-  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .thankyou-leave-active {
   transition: all 0.3s ease-in;
 }
 .thankyou-enter-from {
   opacity: 0;
-  transform: scale(1.05);
+  transform: translateY(20px);
 }
 .thankyou-leave-to {
   opacity: 0;
-  transform: scale(0.95);
-}
-
-.particle {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  animation: float infinite ease-in-out;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
-  50% { transform: translateY(-30px) scale(1.2); opacity: 0.6; }
 }
 </style>

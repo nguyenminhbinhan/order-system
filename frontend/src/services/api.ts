@@ -21,25 +21,58 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+let logoutCallback: (() => void) | null = null;
+
+export function registerLogoutCallback(cb: () => void) {
+  logoutCallback = cb;
+}
+
 function clearAuthAndRedirect() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('user');
+  let loggedOut = false;
+  if (logoutCallback) {
+    try {
+      logoutCallback();
+      loggedOut = true;
+    } catch (e) {
+      console.warn('[AUTH] Dynamic logout callback failed, falling back to manual cleanup:', e);
+    }
+  }
+
+  if (!loggedOut) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tableId');
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('orderId');
+    
+    // Only redirect if not already on login page
+    if (!window.location.pathname.startsWith('/login')) {
+      toast.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+      window.location.href = '/login';
+    }
+  }
+
   isRefreshing = false;
   refreshAttempts = 0;
   failedQueue = [];
-  
-  // Only redirect if not already on login page
-  if (!window.location.pathname.startsWith('/login')) {
-    toast.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
-    window.location.href = '/login';
-  }
 }
 
 // Request interceptor — attach the current token
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
+  async (config) => {
+    let token = null;
+    try {
+      const { useUserStore } = await import('@/stores/user.store');
+      const userStore = useUserStore();
+      token = userStore.token;
+    } catch (e) {
+      token = localStorage.getItem('token');
+    }
+
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
 
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
@@ -48,7 +81,9 @@ apiClient.interceptors.request.use(
       const path = window.location.pathname;
       const isPublicRoute = 
         config.url?.startsWith('/auth/') || 
+        config.url?.startsWith('/payments/') || 
         path.startsWith('/customer') || 
+        path.startsWith('/payment') || 
         path === '/' || 
         path.startsWith('/tables') ||
         path.startsWith('/menu');
@@ -120,9 +155,30 @@ apiClient.interceptors.response.use(
         if (res.data.refresh_token) {
           localStorage.setItem('refreshToken', res.data.refresh_token);
         }
-        // Update stored user if returned
-        if (res.data.user) {
-          localStorage.setItem('user', JSON.stringify(res.data.user));
+
+        // Update user store in memory
+        try {
+          const { useUserStore } = await import('@/stores/user.store');
+          const userStore = useUserStore();
+          userStore.token = newToken;
+          if (res.data.user) {
+            userStore.user = res.data.user;
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+        } catch (e) {
+          console.warn('[AUTH] Failed to update userStore during refresh:', e);
+          if (res.data.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+        }
+
+        // Update socket token and reconnect
+        try {
+          const { socketService } = await import('@/services/socket');
+          socketService.setToken(newToken);
+          socketService.reconnectWithNewToken();
+        } catch (e) {
+          console.warn('[SOCKET] Failed to update socketService during refresh:', e);
         }
 
         processQueue(null, newToken);

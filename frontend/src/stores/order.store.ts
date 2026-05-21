@@ -24,19 +24,30 @@ export const useOrderStore = defineStore('order', () => {
     try {
       const res = await apiClient.post(`/tables/${id}/session`);
       
+      // Handle table locked: backend returns isLocked: true
+      if (res.data.isLocked) {
+        activeSessionToken.value = null;
+        localStorage.removeItem('sessionToken');
+        return { sessionEnded: false, isLocked: true };
+      }
+
       // Handle session cooldown: backend returns token: null if session recently ended
       if (res.data.sessionEnded || !res.data.token) {
         activeSessionToken.value = null;
         localStorage.removeItem('sessionToken');
-        return { sessionEnded: true };
+        return { sessionEnded: true, isLocked: false };
       }
       
       activeSessionToken.value = res.data.token;
       localStorage.setItem('sessionToken', res.data.token);
-      return { sessionEnded: false };
-    } catch(e) {
+      return { sessionEnded: false, isLocked: false };
+    } catch(e: any) {
       console.error('Failed to create session token', e);
-      return { sessionEnded: false };
+      // Check if error response contains isLocked
+      if (e?.response?.data?.isLocked) {
+        return { sessionEnded: false, isLocked: true };
+      }
+      return { sessionEnded: false, isLocked: false };
     }
   }
 
@@ -45,6 +56,37 @@ export const useOrderStore = defineStore('order', () => {
     activeSessionToken.value = null;
     localStorage.removeItem('tableId');
     localStorage.removeItem('sessionToken');
+  }
+
+  /**
+   * Resolve a QR token to a tableId and create/get session.
+   * Used for production QR scanning via /table/:token route.
+   */
+  async function setTableByToken(token: string) {
+    try {
+      const res = await apiClient.get(`/tables/by-token/${token}`);
+      const tableId = res.data.id;
+      return await setTableId(tableId);
+    } catch (e) {
+      console.error('Failed to resolve table token', e);
+      return { sessionEnded: false, error: true };
+    }
+  }
+
+  /**
+   * Validate current session against backend.
+   * Called on page reload to detect stale state.
+   * Returns session status from server.
+   */
+  async function validateSession() {
+    if (!activeTableId.value) return { active: false };
+    try {
+      const res = await apiClient.get(`/tables/${activeTableId.value}/session-status`);
+      return res.data;
+    } catch (e) {
+      console.error('Failed to validate session', e);
+      return { active: false };
+    }
   }
 
   // Order session tracking
@@ -77,10 +119,10 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
-  async function fetchOrderHistory() {
+  async function fetchOrderHistory(activeSessionOnly = false) {
     loading.value = true;
     try {
-      orderHistory.value = await orderService.getOrders();
+      orderHistory.value = await orderService.getOrders(activeSessionOnly);
     } catch (error) {
       console.error('Failed to fetch orders', error);
     } finally {
@@ -117,24 +159,52 @@ export const useOrderStore = defineStore('order', () => {
   }
 
   // Socket setup for general use (e.g Kitchen/Admin)
+  let _listenersInitialized = false;
+
   function initSocketListeners() {
+    // Guard: prevent duplicate listener registration from multiple views
+    if (_listenersInitialized) return;
+    _listenersInitialized = true;
+
     socketService.onNewOrder((order) => {
       // Add to beginning of history if we are tracking all orders
-      orderHistory.value.unshift(order);
+      // Dedup: check if order already exists before adding
+      if (!orderHistory.value.some(o => o.id === order.id)) {
+        orderHistory.value.unshift(order);
+      }
     });
 
     socketService.onOrderUpdated((payload) => {
+      // Gateway sends either full order object (payload.id) or partial ({orderId, status})
+      const orderId = payload.id || payload.orderId;
+      const status = payload.status;
+
       // Update individual order if it matches
-      if (currentOrder.value && currentOrder.value.id === payload.orderId) {
-        currentOrder.value.status = payload.status;
+      if (currentOrder.value && currentOrder.value.id === orderId) {
+        if (payload.items) {
+          // Full order object — replace entirely for freshest data
+          currentOrder.value = payload;
+        } else {
+          currentOrder.value.status = status;
+        }
       }
       
-      // Update in history list 
-      const index = orderHistory.value.findIndex(o => o.id === payload.orderId);
+      // Update in history list
+      const index = orderHistory.value.findIndex(o => o.id === orderId);
       if (index !== -1) {
-        orderHistory.value[index].status = payload.status;
+        if (payload.items) {
+          orderHistory.value[index] = payload;
+        } else {
+          orderHistory.value[index].status = status;
+        }
       }
     });
+  }
+
+  function destroySocketListeners() {
+    _listenersInitialized = false;
+    socketService.offNewOrderCreated();
+    socketService.offOrderUpdated();
   }
 
   async function updateOrderStatus(id: string, status: string) {
@@ -152,5 +222,16 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
-  return { currentOrder, orderHistory, loading, activeTableId, activeOrderId, activeTableOrders, setTableId, clearTableId, setOrderId, clearOrderId, placeOrder, fetchOrderHistory, fetchOrderById, fetchActiveTableOrders, initSocketListeners, updateOrderStatus };
+  function reset() {
+    currentOrder.value = null;
+    orderHistory.value = [];
+    loading.value = false;
+    activeTableId.value = null;
+    activeSessionToken.value = null;
+    activeOrderId.value = null;
+    activeTableOrders.value = [];
+    destroySocketListeners();
+  }
+
+  return { currentOrder, orderHistory, loading, activeTableId, activeOrderId, activeTableOrders, activeSessionToken, setTableId, clearTableId, setTableByToken, validateSession, setOrderId, clearOrderId, placeOrder, fetchOrderHistory, fetchOrderById, fetchActiveTableOrders, initSocketListeners, destroySocketListeners, updateOrderStatus, reset };
 });

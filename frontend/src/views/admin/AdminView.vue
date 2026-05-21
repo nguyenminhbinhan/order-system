@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMenuStore } from '@/stores/menu.store';
 import { useUserStore } from '@/stores/user.store';
 import { apiClient } from '@/services/api';
@@ -7,6 +8,7 @@ import { toast } from 'vue3-toastify';
 
 const menuStore = useMenuStore();
 const userStore = useUserStore();
+const router = useRouter();
 const showAddModal = ref(false);
 const isEditing = ref(false);
 const isSaving = ref(false);
@@ -154,12 +156,17 @@ const handleImageError = (event: Event) => {
   const target = event.target as HTMLImageElement;
   target.src = 'https://placehold.co/400x300?text=No+Image';
 };
+
+const handleLogout = () => {
+  userStore.logout();
+  router.replace('/login');
+};
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
-    <!-- Sidebar Navigation -->
-    <aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0">
+    <!-- Sidebar Navigation — hidden on mobile -->
+    <aside class="hidden lg:flex w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col shrink-0">
       <div class="p-6 flex items-center gap-3">
         <div class="size-10 rounded-xl bg-primary flex items-center justify-center text-white">
           <span class="material-symbols-outlined">restaurant_menu</span>
@@ -192,48 +199,48 @@ const handleImageError = (event: Event) => {
         </router-link>
       </nav>
       <div class="p-4 border-t border-slate-200 dark:border-slate-800">
-        <button @click="userStore.logout" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold">
+        <button @click="handleLogout" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold">
           <span class="material-symbols-outlined text-[20px]">logout</span>
           <span class="text-sm">Sign Out</span>
         </button>
       </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto relative p-8">
+    <main class="flex-1 overflow-y-auto relative p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
       <div class="max-w-[1100px] mx-auto w-full">
       <!-- Title -->
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center mb-6 sm:mb-8">
         <div>
-          <h1 class="text-3xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-400">Menu Management</h1>
-          <p class="text-slate-500">Manage your restaurant offerings and inventory.</p>
+          <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-400">Quản lý Menu</h1>
+          <p class="text-slate-500 text-sm sm:text-base">Quản lý thực đơn và món ăn của nhà hàng.</p>
         </div>
-        <button @click="openAddModal" class="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-lg font-bold shadow-lg hover:shadow-primary/30 transition-shadow">
-          <span class="material-symbols-outlined">add</span> New Item
+        <button @click="openAddModal" class="flex items-center gap-2 bg-primary text-white px-4 sm:px-6 py-2.5 rounded-lg font-bold shadow-lg hover:shadow-primary/30 transition-shadow text-sm sm:text-base min-h-[44px] active:scale-[0.97]">
+          <span class="material-symbols-outlined">add</span> <span class="hidden sm:inline">Thêm món</span><span class="sm:hidden">Thêm</span>
         </button>
       </div>
 
       <!-- Filters -->
-      <div class="flex gap-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+      <div class="flex gap-2 sm:gap-4 mb-6 border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
         <button 
           v-for="cat in categories" 
           :key="cat.id" 
           @click="activeCategory = cat.id"
-          class="pb-3 px-2 font-medium transition-colors"
+          class="pb-2.5 sm:pb-3 px-1.5 sm:px-2 font-medium transition-colors whitespace-nowrap text-sm sm:text-base min-h-[40px]"
           :class="activeCategory === cat.id ? 'text-primary border-b-2 border-primary font-bold' : 'text-slate-500 hover:text-slate-700'"
         >
           {{ cat.displayName || cat.name }}
         </button>
       </div>
 
-      <!-- Table -->
-      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <!-- Desktop Table -->
+      <div class="hidden md:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-slate-50 border-b border-slate-200">
-              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Name</th>
-              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Price</th>
-              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
-              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Tên</th>
+              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Giá</th>
+              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
@@ -271,19 +278,46 @@ const handleImageError = (event: Event) => {
           <p class="font-medium">Không có dữ liệu</p>
         </div>
       </div>
+
+      <!-- Mobile Card List -->
+      <div class="md:hidden space-y-2.5">
+        <div v-for="item in filteredItems" :key="item.id" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-center gap-3">
+          <div class="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0 shadow-sm">
+            <img :src="getImageUrl(item.imageFilename)" @error="handleImageError" class="w-full h-full object-cover" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{{ item.name }}</p>
+            <p class="text-xs text-primary font-bold">{{ formatCurrency(item.price) }}</p>
+            <span v-if="item.isAvailable" class="text-[10px] text-green-600 font-bold">Còn hàng</span>
+            <span v-else class="text-[10px] text-slate-400 font-bold">Hết hàng</span>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            <button @click="handleEdit(item)" class="p-2.5 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center">
+              <span class="material-symbols-outlined text-[18px]">edit</span>
+            </button>
+            <button @click="deleteItem(item.id)" class="p-2.5 text-slate-400 hover:text-red-500 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center">
+              <span class="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="filteredItems.length === 0" class="p-8 text-center text-slate-500">
+          <span class="material-symbols-outlined text-4xl mb-2 opacity-50">fastfood</span>
+          <p class="font-medium">Không có dữ liệu</p>
+        </div>
+      </div>
       </div>
     </main>
 
     <!-- Modal Form -->
-    <div v-if="showAddModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+    <div v-if="showAddModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
         <div class="p-6 border-b border-slate-100 flex justify-between items-center">
           <h3 class="text-lg font-bold">{{ isEditing ? 'Edit Item' : 'Create Menu Item' }}</h3>
           <button @click="showAddModal = false" class="text-slate-400 hover:text-red-500">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
-        <form @submit.prevent="submitForm" class="p-6 space-y-4">
+        <form @submit.prevent="submitForm" class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label class="block text-sm font-bold text-slate-700 mb-1">Name</label>
             <input v-model="formData.name" required type="text" class="w-full rounded-lg border-slate-200 focus:border-primary focus:ring-primary shadow-sm" />
@@ -324,5 +358,29 @@ const handleImageError = (event: Event) => {
         </form>
       </div>
     </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex items-center justify-around py-2 px-1 safe-area-pb">
+      <router-link to="/admin/dashboard" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span>
+        <span class="text-[9px] font-bold">Dashboard</span>
+      </router-link>
+      <router-link to="/admin/menu" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
+        <span class="text-[9px] font-bold">Menu</span>
+      </router-link>
+      <router-link to="/admin/tables" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
+        <span class="text-[9px] font-bold">Bàn</span>
+      </router-link>
+      <router-link to="/admin/qr" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+        <span class="text-[9px] font-bold">QR</span>
+      </router-link>
+      <button @click="handleLogout" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-red-500 transition-colors min-w-[56px]">
+        <span class="material-symbols-outlined text-[20px]">logout</span>
+        <span class="text-[9px] font-bold">Thoát</span>
+      </button>
+    </nav>
   </div>
 </template>

@@ -14,7 +14,7 @@ const fetchTables = async () => {
   try {
     tables.value = await tableService.getTables();
   } catch (error) {
-    console.error('Failed to fetch tables', error);
+    // Table fetch failed — loading state handles display
   } finally {
     loading.value = false;
   }
@@ -24,8 +24,12 @@ onMounted(() => {
   fetchTables();
 });
 
-const generateQRUrl = (tableId: number) => {
-  return `http://localhost:5173/menu?tableId=${tableId}`;
+const generateQRUrl = (table: any) => {
+  // Use VITE_FRONTEND_URL from env, or fall back to current origin
+  const baseUrl = (import.meta as any).env?.VITE_FRONTEND_URL || 
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+  // Use qrToken for production-safe URLs (no raw IDs)
+  return `${baseUrl}/table/${table.qrToken}`;
 };
 </script>
 
@@ -134,13 +138,13 @@ const generateQRUrl = (tableId: number) => {
 
           <!-- QR Code -->
           <div class="bg-white p-4 rounded-xl shadow-inner border border-slate-100 flex items-center justify-center mb-6">
-            <qrcode-vue :value="generateQRUrl(table.id)" :size="180" level="H" />
+            <qrcode-vue :value="generateQRUrl(table)" :size="180" level="H" />
           </div>
 
           <!-- URL helper -->
           <div class="w-full text-center">
-             <a :href="generateQRUrl(table.id)" target="_blank" class="text-xs text-primary hover:underline truncate block px-4 opacity-70">
-               {{ generateQRUrl(table.id) }}
+             <a :href="generateQRUrl(table)" target="_blank" class="text-xs text-primary hover:underline truncate block px-4 opacity-70">
+               {{ generateQRUrl(table) }}
              </a>
           </div>
 

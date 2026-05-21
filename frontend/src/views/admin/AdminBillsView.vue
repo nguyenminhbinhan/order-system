@@ -158,31 +158,38 @@ const executePrint = (silent = false) => {
         <title>Print Bill</title>
         <style>
           body { 
-            font-family: 'Courier New', Courier, monospace; 
-            padding: 0; margin: 0; color: #000; font-size: 12px; line-height: 1.4;
+            font-family: 'Courier New', Consolas, Monaco, monospace; 
+            padding: 0; margin: 0; color: #111; font-size: 13px; line-height: 1.5;
           }
-          .thermal-receipt {
-            width: 80mm; margin: 0 auto; padding: 5mm; box-sizing: border-box;
-          }
-          .center { text-align: center; }
-          .right { text-align: right; }
-          .bold { font-weight: bold; }
-          .title { font-size: 16px; margin-bottom: 2px; }
-          .subtitle { font-size: 14px; margin: 8px 0; }
-          .address { font-size: 10px; margin-bottom: 5px; }
-          .dashed-line { border-top: 1px dashed #000; margin: 6px 0; }
-          .flex-between { display: flex; justify-content: space-between; align-items: flex-start; }
-          .info-row { display: flex; justify-content: space-between; font-size: 12px; }
-          .items .item { margin-bottom: 4px; }
-          .price-col { white-space: nowrap; padding-left: 10px; text-align: right; min-width: 65px; }
-          .note { font-style: italic; font-size: 11px; }
-          .total-row { font-size: 16px; margin: 4px 0; }
-          .qr-container { display: flex; justify-content: center; margin: 10px 0 5px 0; }
-          canvas, img { max-width: 140px; max-height: 140px; }
-          @media print {
-            @page { margin: 0; size: 80mm auto; }
-            body { margin: 0; }
-          }
+          .thermal-receipt { width: 80mm; margin: 0 auto; padding: 4mm; box-sizing: border-box; }
+          .receipt-header { text-align: center; margin-bottom: 6px; }
+          .shop-name { font-size: 16px; font-weight: 900; letter-spacing: 1px; margin-bottom: 4px; }
+          .shop-info { font-size: 10px; color: #555; line-height: 1.4; }
+          .receipt-title { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 2px; margin: 6px 0; }
+          .dashed-divider { border-top: 1px dashed #999; margin: 6px 0; }
+          .solid-divider { border-top: 1px solid #333; margin: 3px 0; }
+          .info-section { margin: 4px 0; }
+          .info-line { display: flex; justify-content: space-between; font-size: 11px; line-height: 1.7; }
+          .info-value { font-weight: 700; }
+          .col-header { display: flex; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+          .col-name { flex: 1; text-align: left; }
+          .col-qty { width: 24px; text-align: center; }
+          .col-price { width: 55px; text-align: right; }
+          .col-total { width: 60px; text-align: right; }
+          .items-section { margin: 4px 0; }
+          .item-row { margin-bottom: 3px; }
+          .item-main { display: flex; font-size: 12px; line-height: 1.5; }
+          .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .item-note { font-size: 10px; color: #888; padding-left: 8px; font-style: italic; }
+          .totals-section { margin: 4px 0; }
+          .total-line { display: flex; justify-content: space-between; font-size: 12px; }
+          .total-value { font-weight: 700; }
+          .grand-total-line { display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; }
+          .qr-section { text-align: center; padding: 6px 0; }
+          .qr-img { width: 140px; height: auto; margin: 0 auto; display: block; }
+          .qr-label { font-size: 9px; color: #888; margin-top: 3px; }
+          .receipt-footer { text-align: center; font-size: 11px; color: #555; line-height: 1.6; padding: 4px 0 6px; }
+          @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; } }
         </style>
       </head>
       <body>${printContents}</body>

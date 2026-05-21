@@ -5,52 +5,40 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: 'select', categoryId: string | null): void;
+  (e: 'select', id: string | null): void;
 }>();
 </script>
 
 <template>
-  <div class="pb-3 sticky top-[128px] bg-background-light dark:bg-background-dark z-10 w-full overflow-hidden">
-    <div class="flex border-b border-slate-200 dark:border-slate-700 px-4 gap-6 overflow-x-auto no-scrollbar w-full whitespace-nowrap">
+  <div class="sticky top-[108px] sm:top-[115px] bg-background-light dark:bg-background-dark z-10 w-full">
+    <div class="flex px-3 sm:px-4 gap-2 overflow-x-auto no-scrollbar py-2">
       
-      <a 
-        href="#"
-        @click.prevent="$emit('select', null)"
-        class="flex flex-col items-center justify-center pb-[13px] pt-2 shrink-0 transition-colors"
+      <button 
+        @click="$emit('select', null)"
         :class="[
+          'px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[40px] sm:min-h-[36px]',
           activeCategoryId === null 
-            ? 'border-b-[3px] border-primary text-primary' 
-            : 'border-b-[3px] border-transparent text-slate-500 dark:text-slate-400 hover:text-primary'
+            ? 'bg-primary text-white shadow-sm shadow-primary/20' 
+            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-primary/30 hover:text-primary active:scale-95'
         ]"
       >
-        <p class="text-sm font-bold leading-normal tracking-[0.015em]">Tất cả</p>
-      </a>
+        Tất cả
+      </button>
 
-      <a 
+      <button 
         v-for="cat in categories" 
         :key="cat.id"
-        href="#"
-        @click.prevent="$emit('select', cat.id)"
-        class="flex flex-col items-center justify-center pb-[13px] pt-2 shrink-0 transition-colors"
+        @click="$emit('select', cat.id)"
         :class="[
+          'px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[40px] sm:min-h-[36px]',
           activeCategoryId === cat.id 
-            ? 'border-b-[3px] border-primary text-primary' 
-            : 'border-b-[3px] border-transparent text-slate-500 dark:text-slate-400 hover:text-primary'
+            ? 'bg-primary text-white shadow-sm shadow-primary/20' 
+            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-primary/30 hover:text-primary active:scale-95'
         ]"
       >
-        <p class="text-sm font-bold leading-normal tracking-[0.015em]">{{ cat.displayName || cat.name }}</p>
-      </a>
+        {{ cat.displayName || cat.name }}
+      </button>
 
     </div>
   </div>
 </template>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-</style>

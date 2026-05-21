@@ -1,0 +1,1123 @@
+﻿diff --git a/frontend/src/views/service/ServiceTablesView.vue b/frontend/src/views/service/ServiceTablesView.vue
+index 94a089c..aaf91e2 100644
+--- a/frontend/src/views/service/ServiceTablesView.vue
++++ b/frontend/src/views/service/ServiceTablesView.vue
+@@ -15,6 +15,10 @@ import { useRouter } from 'vue-router';
+ const userStore = useUserStore();
+ const router = useRouter();
+ 
++const handleLogout = () => {
++  userStore.logout();
++};
++
+ const tables = ref<any[]>([]);
+ const activeOrders = ref<any[]>([]);
+ const loading = ref(true);
+@@ -26,11 +30,22 @@ const showPaymentModal = ref(false);
+ const isProcessingPayment = ref(false);
+ const isConfirmingOrder = ref(false);
+ const isResettingTable = ref(false);
++const showCheckoutWarning = ref(false);
++const nonReadyItems = ref<any[]>([]);
++const pendingWarningTable = ref<any>(null);
++const itemNotes = ref<Record<string, string>>({});
+ 
+ const formatCurrency = (value: number) => {
+   return new Intl.NumberFormat('vi-VN').format(value || 0) + ' Γé½';
+ };
+ 
++const hasConfirmedItemsForTable = (table: any) => {
++  if (!table?.tableOrders) return false;
++  return table.tableOrders.some((o: any) => 
++    o.items?.some((i: any) => i.status !== 'pending' && i.status !== 'cancelled')
++  );
++};
++
+ const chatTableId = ref<number | null>(null);
+ const chatTableName = ref('');
+ const notifications = ref<Record<number, { unreadCount: number, lastType: string, lastMessage: string }>>({});
+@@ -69,10 +84,32 @@ const fetchData = async () => {
+   try {
+     const [tablesData, ordersData] = await Promise.all([
+       tableService.getTables(),
+-      orderService.getOrders()
++      orderService.getOrders(true)
+     ]);
+     tables.value = JSON.parse(JSON.stringify(tablesData));
+-    activeOrders.value = JSON.parse(JSON.stringify(ordersData.filter((o: any) => ['pending_confirmation', 'confirmed', 'preparing', 'ready'].includes(o.status))));
++    activeOrders.value = JSON.parse(JSON.stringify(ordersData.filter((o: any) => ['pending_confirmation', 'confirmed', 'preparing', 'ready', 'delivered'].includes(o.status))));
++    
++    // Sync the selectedTable if a modal is currently open to reflect cancellations or status changes in real-time
++    if (showModal.value && selectedTable.value) {
++      const updated = displayTables.value.find(t => t.id === selectedTable.value.id);
++      if (updated) {
++        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
++        // Populate notes for any new items that were fetched
++        tableOrders.forEach((order: any) => {
++          order.items?.forEach((item: any) => {
++            if (itemNotes.value[item.id] === undefined) {
++              itemNotes.value[item.id] = item.note || '';
++            }
++          });
++        });
++      }
++    }
+   } catch (error) {
+     console.error('Failed to fetch dashboard data', error);
+   } finally {
+@@ -87,12 +124,10 @@ onMounted(() => {
+   socketService.joinService(); // Waiters join the service room
+ 
+   socketService.onNewOrderCreated(() => {
+-    console.log('[SOCKET] onNewOrderCreated received');
+     fetchData();
+   });
+ 
+   socketService.onOrderUpdated(() => {
+-    console.log('[SOCKET] orderUpdated received');
+     fetchData();
+   });
+ 
+@@ -120,7 +155,6 @@ onMounted(() => {
+   });
+ 
+   socketService.on('paymentCompleted', (data) => {
+-    console.log('[SOCKET] paymentCompleted received for table:', data.tableId);
+     fetchData();
+     const tblName = tables.value.find(t => t.id === data.tableId)?.name?.replace('Table', '')?.trim() || data.tableId;
+     toast.success(`B├án ${tblName} thanh to├ín th├ánh c├┤ng!`);
+@@ -132,9 +166,40 @@ onMounted(() => {
+   });
+ 
+   socketService.on('tableUpdated', (tableId) => {
+-    console.log('[SOCKET] tableUpdated received for table:', tableId);
+     fetchData();
+   });
++
++  // Customer activity notifications (Fix #3)
++  socketService.onCustomerActivity((data: any) => {
++    // Add to notification badges
++    if (!notifications.value[data.tableId]) {
++      notifications.value[data.tableId] = { unreadCount: 0, lastType: '', lastMessage: '' };
++    }
++    
++    // Don't increment if chat is open for this table
++    if (chatTableId.value !== data.tableId) {
++      notifications.value[data.tableId].unreadCount++;
++    }
++    
++    notifications.value[data.tableId].lastType = data.type;
++    notifications.value[data.tableId].lastMessage = data.description;
++
++    // Show toast for important activities
++    const activityIcons: Record<string, string> = {
++      SCAN_QR: '≡ƒô▒',
++      ORDER_PLACED: '≡ƒì╜∩╕Å',
++      PAYMENT_CONFIRMED: '≡ƒÆ│',
++      ITEM_CANCELLED: 'Γ¥î',
++      CART_UPDATE: '≡ƒ¢Æ',
++    };
++    const icon = activityIcons[data.type] || '≡ƒôï';
++    
++    // Only show toasts for high-priority events (not cart browsing)
++    if (['SCAN_QR', 'ORDER_PLACED', 'PAYMENT_CONFIRMED', 'ITEM_CANCELLED'].includes(data.type)) {
++      toast.info(`${icon} ${data.description}`, { autoClose: 4000, theme: 'colored' });
++    }
++  });
++
+ });
+ 
+ onUnmounted(() => {
+@@ -144,6 +209,8 @@ onUnmounted(() => {
+   socketService.off('billPrinted');
+   socketService.off('paymentCompleted');
+   socketService.off('tableUpdated');
++  socketService.offCustomerActivity();
++
+   socketService.leaveService();
+ });
+ 
+@@ -151,7 +218,7 @@ onUnmounted(() => {
+ const displayTables = computed(() => {
+   return tables.value.map(table => {
+     // Find ALL active orders for this table mapping generically 
+-    const tableOrders = activeOrders.value.filter(o => o.tableId === table.id);
++    const tableOrders = activeOrders.value.filter(o => o.tableId === table.id && o.sessionId === table.activeSessionId);
+     const activeOrder = tableOrders.length > 0 ? tableOrders[0] : null;
+ 
+     let colorClass, badgeClass, statusText, icon;
+@@ -229,100 +296,156 @@ const openTableModal = (tableId: number) => {
+   const table = displayTables.value.find(t => t.id === tableId);
+   if (table) {
+     selectedTable.value = table;
++    // Populate notes
++    selectedTable.value.tableOrders?.forEach((order: any) => {
++      order.items?.forEach((item: any) => {
++        itemNotes.value[item.id] = item.note || '';
++      });
++    });
+     showModal.value = true;
+   }
+ };
+ 
+-// ========== EDITABLE CONFIRM ==========
+-// Track editable items per order (keyed by orderId)
+-const editableItems = ref<Record<string, any[]>>({});
+-
+-const initEditableItems = (order: any) => {
+-  if (!editableItems.value[order.id]) {
+-    editableItems.value[order.id] = order.items.map((item: any) => ({
+-      itemId: item.id,
+-      name: item.name || item.menuItem?.name || 'Item',
+-      price: Number(item.price),
+-      quantity: item.quantity,
+-      note: item.note || '',
+-    }));
++const handleUpdateQuantity = async (orderId: string, item: any, delta: number) => {
++  const newQty = item.quantity + delta;
++  if (newQty <= 0) {
++    await handleServiceCancelItem(orderId, item.id, item.name || 'M├│n ─ân');
++    return;
++  }
++  
++  try {
++    const currentNote = itemNotes.value[item.id] || '';
++    await orderService.updateItemProperties(orderId, item.id, newQty, currentNote);
++    item.quantity = newQty;
++    await fetchData();
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi cß║¡p nhß║¡t sß╗æ l╞░ß╗úng');
+   }
+ };
+ 
+-const getEditableItems = (orderId: string) => {
+-  return editableItems.value[orderId] || [];
+-};
+-
+-const editItemQty = (orderId: string, itemId: string, delta: number) => {
+-  const items = editableItems.value[orderId];
+-  if (!items) return;
+-  const item = items.find((i: any) => i.itemId === itemId);
+-  if (!item) return;
+-  item.quantity = Math.max(1, item.quantity + delta);
++const handleSaveItemNote = async (orderId: string, item: any) => {
++  const newNote = itemNotes.value[item.id] || '';
++  if (newNote === (item.note || '')) return;
++  
++  try {
++    await orderService.updateItemProperties(orderId, item.id, item.quantity, newNote);
++    item.note = newNote;
++    toast.success('─É├ú l╞░u ghi ch├║ m├│n');
++    await fetchData();
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi cß║¡p nhß║¡t ghi ch├║');
++    itemNotes.value[item.id] = item.note || '';
++  }
+ };
+ 
+-const getEditableTotal = (orderId: string) => {
+-  const items = editableItems.value[orderId];
+-  if (!items) return 0;
+-  return items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+-};
++// ========== INDIVIDUAL ITEM ACTIONS ==========
++const isUpdatingItemStatus = ref<string | null>(null);
+ 
+-const handleConfirmOrder = async () => {
+-  if (!selectedOrder.value || isConfirmingOrder.value) return;
++const handleConfirmIndividualItem = async (orderId: string, itemId: string, itemName: string) => {
++  if (isConfirmingOrder.value) return;
+   isConfirmingOrder.value = true;
+   try {
+-    await apiClient.post(`/orders/${selectedOrder.value.id}/confirm`);
++    await orderService.confirmItems(orderId, [itemId]);
++    toast.success(`─É├ú x├íc nhß║¡n m├│n: ${itemName}!`);
+     await fetchData();
+-    toast.success('Order confirmed and sent to Kitchen');
+-    showModal.value = false;
++    // Rebind the modal payload organically
++    if (selectedTable.value) {
++      const updated = tables.value.find(t => t.id === selectedTable.value.id);
++      if (updated) {
++        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
++      }
++    }
+   } catch (error: any) {
+-    console.error(error);
+-    toast.error(error.response?.data?.message || 'C├│ lß╗ùi xß║úy ra');
++    toast.error(error.response?.data?.message || 'Lß╗ùi x├íc nhß║¡n m├│n');
+   } finally {
+     isConfirmingOrder.value = false;
+   }
+ };
+ 
+-const handleConfirmSpecificOrder = async (orderId: string) => {
+-  if (isConfirmingOrder.value) return;
+-  
+-  isConfirmingOrder.value = true;
++const handleMarkItemReady = async (orderId: string, itemId: string, itemName: string) => {
++  if (isUpdatingItemStatus.value) return;
++  isUpdatingItemStatus.value = itemId;
+   try {
+-    const items = editableItems.value[orderId];
+-    if (items && items.length > 0) {
+-      // Use confirm-with-edits endpoint
+-      await apiClient.post(`/orders/${orderId}/confirm-with-edits`, {
+-        items: items.map((i: any) => ({
+-          itemId: i.itemId,
+-          quantity: i.quantity,
+-          note: i.note,
+-        }))
+-      });
+-    } else {
+-      // Fallback to simple confirm
+-      await apiClient.post(`/orders/${orderId}/confirm`);
++    await orderService.updateItemStatus(orderId, itemId, 'ready');
++    toast.success(`Γ£à ${itemName} ΓÇö ─É├ú nß║Ñu xong!`);
++    await fetchData();
++    // Rebind the modal payload organically
++    if (selectedTable.value) {
++      const updated = tables.value.find(t => t.id === selectedTable.value.id);
++      if (updated) {
++        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
++      }
+     }
+-    
+-    // Clean up editable state
+-    delete editableItems.value[orderId];
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi cß║¡p nhß║¡t trß║íng th├íi');
++  } finally {
++    isUpdatingItemStatus.value = null;
++  }
++};
++
++// ========== SERVICE STATUS ACTIONS (served / completed) ==========
++const updatingOrderId = ref<string | null>(null);
+ 
++const handleServiceStatusUpdate = async (orderId: string, newStatus: string) => {
++  if (updatingOrderId.value) return;
++  updatingOrderId.value = orderId;
++  try {
++    await apiClient.put(`/orders/${orderId}`, { status: newStatus });
+     await fetchData();
+-    // Rebind the modal payload organically
+-    const updated = tables.value.find(t => t.id === selectedTable.value.id);
+-    if (updated) {
+-       const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id);
+-       selectedTable.value.tableOrders = tableOrders;
+-       selectedTable.value.computedState = updated.computedState;
++    // Rebind modal data
++    if (selectedTable.value) {
++      const updated = tables.value.find(t => t.id === selectedTable.value.id);
++      if (updated) {
++        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
++      }
+     }
+-    toast.success('─É├ú x├íc nhß║¡n v├á gß╗¡i bß║┐p!');
++    const labels: Record<string, string> = { ready: 'X├íc nhß║¡n ─æ├ú nß║Ñu!' };
++    toast.success(labels[newStatus] || 'Cß║¡p nhß║¡t th├ánh c├┤ng');
+   } catch (error: any) {
+-    console.error(error);
+-    toast.error(error.response?.data?.message || 'C├│ lß╗ùi xß║úy ra');
++    toast.error(error.response?.data?.message || 'Lß╗ùi cß║¡p nhß║¡t');
+   } finally {
+-    isConfirmingOrder.value = false;
++    updatingOrderId.value = null;
+   }
+ };
+ 
++const orderStatusLabel = (status: string): string => {
++  const labels: Record<string, string> = {
++    pending_confirmation: 'Chß╗¥ x├íc nhß║¡n',
++    confirmed: '≡ƒöÑ ─É├ú gß╗¡i bß║┐p',
++    ready: 'Γ£à ─É├ú nß║Ñu',
++    cancelled: '─É├ú huß╗╖',
++  };
++  return labels[status] || status;
++};
++
++const orderStatusColor = (status: string): string => {
++  const colors: Record<string, string> = {
++    pending_confirmation: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
++    confirmed: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
++    ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
++    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
++  };
++  return colors[status] || 'bg-slate-100 text-slate-500';
++};
++
+ // ========== STAFF ORDER MODAL ==========
+ import { useMenuStore } from '@/stores/menu.store';
+ const menuStore = useMenuStore();
+@@ -442,8 +565,12 @@ const submitStaffOrder = async () => {
+       const updated = tables.value.find(t => t.id === staffOrderTableId.value);
+       if (updated) {
+         const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id);
+-        selectedTable.value.tableOrders = tableOrders;
+-        selectedTable.value.computedState = updated.computedState;
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
+       }
+     }
+   } catch (error: any) {
+@@ -457,6 +584,8 @@ const submitStaffOrder = async () => {
+ const showPreviewBill = ref(false);
+ const isPreviewing = ref(false);
+ const previewData = ref<any>(null);
++const activePaymentId = ref<string | null>(null);
++const isCreatingPayment = ref(false);
+ 
+ const executePrint = (silent = false) => {
+   const printContents = document.getElementById('print-area')?.innerHTML;
+@@ -539,15 +668,44 @@ const handleViewPreview = async (table: any) => {
+     return;
+   }
+ 
+-  console.log('CLICK PREVIEW', tableId);
+-  
++  // Gather all non-ready items
++  const uncompleted: any[] = [];
++  if (table.tableOrders) {
++    table.tableOrders.forEach((order: any) => {
++      if (order.items) {
++        order.items.forEach((item: any) => {
++          if (item.status !== 'cancelled' && item.status !== 'ready') {
++            uncompleted.push({
++              name: item.name || item.menuItem?.name || 'M├│n ─ân',
++              status: item.status,
++              quantity: item.quantity
++            });
++          }
++        });
++      }
++    });
++  }
++
++  // If there are non-ready items, show the warning modal first!
++  if (uncompleted.length > 0) {
++    nonReadyItems.value = uncompleted;
++    pendingWarningTable.value = table;
++    showCheckoutWarning.value = true;
++    return;
++  }
++
++  await proceedToPreviewBill(table);
++};
++
++const proceedToPreviewBill = async (table: any) => {
++  const tableId = table.id;
+   if (isPreviewing.value) return;
+   try {
+     isPreviewing.value = true;
+     showPreviewBill.value = false;
++    activePaymentId.value = null;  // Reset QR state for fresh preview
+     
+     const res = await apiClient.get(`/tables/${tableId}/preview-bill`);
+-    console.log('RESPONSE:', res.data);
+     
+     previewData.value = res.data;
+     selectedTable.value = table;
+@@ -563,6 +721,20 @@ const handleViewPreview = async (table: any) => {
+   }
+ };
+ 
++const handleConfirmCheckoutWarning = async () => {
++  showCheckoutWarning.value = false;
++  if (pendingWarningTable.value) {
++    await proceedToPreviewBill(pendingWarningTable.value);
++    pendingWarningTable.value = null;
++  }
++};
++
++const handleCancelCheckoutWarning = () => {
++  showCheckoutWarning.value = false;
++  pendingWarningTable.value = null;
++  nonReadyItems.value = [];
++};
++
+ 
+ const handleFinalCheckout = async (table: any = null) => {
+   let targetTableId = table?.id;
+@@ -577,7 +749,6 @@ const handleFinalCheckout = async (table: any = null) => {
+     return;
+   }
+ 
+-  console.log('TABLE STATE:', targetTableId, table?.computedState || selectedTable.value?.computedState);
+   if (isProcessingPayment.value) return;
+   isProcessingPayment.value = true;
+   try {
+@@ -603,7 +774,6 @@ const handleForceReset = async (table: any) => {
+     return;
+   }
+   
+-  console.log('TABLE STATE:', tableId, table?.computedState);
+   if (table?.computedState === 'available') {
+     toast.error('B├án ch╞░a c├│ dß╗» liß╗çu ─æß╗â reset');
+     return;
+@@ -629,6 +799,123 @@ const handleForceReset = async (table: any) => {
+   }
+ };
+ 
++// ========== QR PAYMENT CREATION ==========
++const handleCreateQRPayment = async () => {
++  if (isCreatingPayment.value || !previewData.value?.tableId) return;
++  isCreatingPayment.value = true;
++  try {
++    const res = await apiClient.post(`/tables/${previewData.value.tableId}/create-payment`);
++    activePaymentId.value = res.data.paymentId;
++    toast.success('─É├ú tß║ío QR thanh to├ín! Kh├ích c├│ thß╗â qu├⌐t m├ú.');
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi tß║ío thanh to├ín');
++  } finally {
++    isCreatingPayment.value = false;
++  }
++};
++
++// ========== ORDER ITEM CANCELLATION (Fix #4 ΓÇö Service/Waiter) ==========
++const cancellingServiceItemId = ref<string | null>(null);
++
++const handleServiceCancelItem = async (orderId: string, itemId: string, itemName: string) => {
++  if (cancellingServiceItemId.value) return;
++  
++  const confirmed = confirm(`Hß╗ºy m├│n "${itemName}"? H├ánh ─æß╗Öng n├áy kh├┤ng thß╗â ho├án t├íc.`);
++  if (!confirmed) return;
++
++  cancellingServiceItemId.value = itemId;
++  try {
++    await orderService.cancelOrderItem(orderId, itemId, 'service');
++    toast.success(`─É├ú hß╗ºy: ${itemName}`);
++    await fetchData();
++    // Refresh the modal if it's open
++    if (selectedTable.value) {
++      await openTableModal(selectedTable.value.id);
++    }
++  } catch (error: any) {
++    const msg = error?.response?.data?.message || 'Kh├┤ng thß╗â hß╗ºy m├│n.';
++    toast.error(msg);
++  } finally {
++    cancellingServiceItemId.value = null;
++  }
++};
++
++// ========== TABLE LOCK/UNLOCK (Feature #3) ==========
++const isTogglingLock = ref(false);
++
++const handleToggleLock = async (tableId: number, currentLocked: boolean) => {
++  if (isTogglingLock.value) return;
++  isTogglingLock.value = true;
++  try {
++    const endpoint = currentLocked ? 'unlock' : 'lock';
++    await apiClient.post(`/tables/${tableId}/${endpoint}`);
++    toast.success(currentLocked ? '─É├ú mß╗ƒ kh├│a b├án' : '─É├ú kh├│a b├án');
++    await fetchData();
++    // Refresh modal
++    if (selectedTable.value?.id === tableId) {
++      const updated = tables.value.find(t => t.id === tableId);
++      if (updated) {
++        selectedTable.value = { ...selectedTable.value, ...updated, isLocked: !currentLocked };
++      }
++    }
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi kh├│a/mß╗ƒ kh├│a b├án');
++  } finally {
++    isTogglingLock.value = false;
++  }
++};
++
++// ========== PER-ITEM STATUS UPDATE (Feature #2) ==========
++const updatingItemId = ref<string | null>(null);
++
++const handleUpdateItemStatus = async (orderId: string, itemId: string, newStatus: string) => {
++  if (updatingItemId.value) return;
++  updatingItemId.value = itemId;
++  try {
++    await orderService.updateItemStatus(orderId, itemId, newStatus);
++    toast.success('Cß║¡p nhß║¡t trß║íng th├íi m├│n th├ánh c├┤ng');
++    await fetchData();
++    if (selectedTable.value) {
++      const updated = tables.value.find(t => t.id === selectedTable.value.id);
++      if (updated) {
++        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
++        selectedTable.value = {
++          ...selectedTable.value,
++          ...updated,
++          tableOrders,
++          computedState: updated.computedState
++        };
++      }
++    }
++  } catch (error: any) {
++    toast.error(error.response?.data?.message || 'Lß╗ùi cß║¡p nhß║¡t trß║íng th├íi');
++  } finally {
++    updatingItemId.value = null;
++  }
++};
++
++// Batch and select-all functions removed in favor of direct individual confirmation.
++
++const itemStatusLabel = (status: string): string => {
++  const labels: Record<string, string> = {
++    pending: 'Chß╗¥ x├íc nhß║¡n',
++    confirmed: '─É├ú gß╗¡i bß║┐p',
++    ready: '─É├ú nß║Ñu',
++    cancelled: '─É├ú hß╗ºy',
++  };
++  return labels[status] || status;
++};
++
++const itemStatusColor = (status: string): string => {
++  const colors: Record<string, string> = {
++    pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
++    confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
++    ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
++    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 line-through',
++  };
++  return colors[status] || 'bg-slate-100 text-slate-500';
++};
++
+ </script>
+ 
+ <template>
+@@ -636,70 +923,75 @@ const handleForceReset = async (table: any) => {
+     
+     <!-- Header -->
+     <header class="sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+-      <div class="flex items-center p-4 justify-between max-w-7xl mx-auto w-full">
+-        <div class="flex items-center gap-3">
+-          <div class="bg-primary/10 p-2 rounded-lg text-primary">
+-            <span class="material-symbols-outlined">grid_view</span>
++      <div class="flex items-center px-3 sm:px-4 py-3 sm:py-4 justify-between max-w-7xl mx-auto w-full">
++        <div class="flex items-center gap-2.5 sm:gap-3">
++          <div class="bg-primary/10 p-1.5 sm:p-2 rounded-lg text-primary">
++            <span class="material-symbols-outlined text-[20px] sm:text-[24px]">grid_view</span>
++          </div>
++          <div>
++            <h2 class="text-base sm:text-xl font-bold leading-tight tracking-tight">Quß║ún l├╜ b├án</h2>
++            <p class="text-[10px] text-slate-500 font-medium sm:hidden">{{ tables.length }} b├án</p>
+           </div>
+-          <h2 class="text-xl font-bold leading-tight tracking-tight">Table Management</h2>
+         </div>
+-        <div class="flex items-center gap-2">
++        <div class="flex items-center gap-1.5 sm:gap-2">
+           <NotificationBell />
+-          <button @click="fetchData" class="flex size-10 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
++          <button @click="fetchData" class="flex size-10 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors active:scale-95">
+             <span class="material-symbols-outlined" :class="{ 'animate-spin': loading }">refresh</span>
+           </button>
++          <button @click="handleLogout" class="flex size-10 items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95" title="─É─âng xuß║Ñt">
++            <span class="material-symbols-outlined text-[20px]">logout</span>
++          </button>
+         </div>
+       </div>
+       
+-      <!-- Tab Navigation -->
+-      <div class="px-4 max-w-7xl mx-auto w-full">
+-        <div class="flex gap-6 overflow-x-auto no-scrollbar">
+-          <a class="flex flex-col items-center justify-center border-b-2 border-primary text-primary pb-3 pt-2 whitespace-nowrap" href="#">
+-            <p class="text-sm font-bold">Tß║Ñt cß║ú ({{ tables.length }})</p>
++      <!-- Tab Navigation ΓÇö scrollable on mobile -->
++      <div class="px-3 sm:px-4 max-w-7xl mx-auto w-full">
++        <div class="flex gap-3 sm:gap-6 overflow-x-auto no-scrollbar">
++          <a class="flex flex-col items-center justify-center border-b-2 border-primary text-primary pb-2.5 sm:pb-3 pt-1.5 sm:pt-2 whitespace-nowrap" href="#">
++            <p class="text-xs sm:text-sm font-bold">Tß║Ñt cß║ú ({{ tables.length }})</p>
+           </a>
+-          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-3 pt-2 whitespace-nowrap" href="#">
+-            <p class="text-sm font-bold">Trß╗æng ({{ stats.available }})</p>
++          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2.5 sm:pb-3 pt-1.5 sm:pt-2 whitespace-nowrap" href="#">
++            <p class="text-xs sm:text-sm font-bold">Trß╗æng ({{ stats.available }})</p>
+           </a>
+-          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-3 pt-2 whitespace-nowrap" href="#">
+-            <p class="text-sm font-bold">Chß╗¥ x├íc nhß║¡n ({{ stats.waiting }})</p>
++          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2.5 sm:pb-3 pt-1.5 sm:pt-2 whitespace-nowrap" href="#">
++            <p class="text-xs sm:text-sm font-bold">Chß╗¥ x├íc nhß║¡n ({{ stats.waiting }})</p>
+           </a>
+-          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-3 pt-2 whitespace-nowrap" href="#">
+-            <p class="text-sm font-bold">─Éang phß╗Ñc vß╗Ñ ({{ stats.occupied }})</p>
++          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2.5 sm:pb-3 pt-1.5 sm:pt-2 whitespace-nowrap" href="#">
++            <p class="text-xs sm:text-sm font-bold">─Éang phß╗Ñc vß╗Ñ ({{ stats.occupied }})</p>
+           </a>
+-          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-3 pt-2 whitespace-nowrap" href="#">
+-            <p class="text-sm font-bold">Phß╗Ñc vß╗Ñ xong ({{ stats.serving }})</p>
++          <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2.5 sm:pb-3 pt-1.5 sm:pt-2 whitespace-nowrap" href="#">
++            <p class="text-xs sm:text-sm font-bold">Phß╗Ñc vß╗Ñ xong ({{ stats.serving }})</p>
+           </a>
+         </div>
+       </div>
+     </header>
+ 
+-    <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-24 md:pb-8">
+-      <div v-if="loading && tables.length === 0" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+-        <div v-for="i in 10" :key="i" class="bg-slate-100 dark:bg-slate-800 rounded-xl p-4 aspect-square flex flex-col justify-between animate-pulse border border-slate-200 dark:border-slate-700">
++    <main class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-24 md:pb-8">
++      <div v-if="loading && tables.length === 0" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 md:gap-4">
++        <div v-for="i in 10" :key="i" class="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 sm:p-4 aspect-[4/3] sm:aspect-square flex flex-col justify-between animate-pulse border border-slate-200 dark:border-slate-700">
+           <div class="flex justify-between items-start">
+-            <div class="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+-            <div class="h-5 w-20 bg-slate-200 dark:bg-slate-700 rounded shadow-sm"></div>
++            <div class="h-6 sm:h-8 w-12 sm:w-16 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
++            <div class="h-4 sm:h-5 w-14 sm:w-20 bg-slate-200 dark:bg-slate-700 rounded shadow-sm"></div>
+           </div>
+-          <div class="space-y-3">
+-             <div class="flex items-center gap-2"><div class="h-4 w-4 bg-slate-200 dark:bg-slate-700 rounded-full"></div><div class="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded"></div></div>
+-             <div class="flex items-center gap-2"><div class="h-4 w-4 bg-slate-200 dark:bg-slate-700 rounded-full"></div><div class="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div></div>
+-             <div class="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg mt-4 shadow-sm"></div>
++          <div class="space-y-2 sm:space-y-3">
++             <div class="flex items-center gap-2"><div class="h-3 sm:h-4 w-3 sm:w-4 bg-slate-200 dark:bg-slate-700 rounded-full"></div><div class="h-3 sm:h-4 w-16 sm:w-20 bg-slate-200 dark:bg-slate-700 rounded"></div></div>
++             <div class="h-8 sm:h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg mt-2 sm:mt-4 shadow-sm"></div>
+           </div>
+         </div>
+       </div>
+       
+-      <div v-else class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
++      <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 md:gap-4">
+         
+         <div 
+           v-for="table in displayTables" 
+           :key="table.id"
+           @click="handleTableClickEvent(table.id)"
+-          :class="['group relative flex flex-col rounded-xl p-4 aspect-square justify-between cursor-pointer transition-all', table.colorClass]"
++          :class="['group relative flex flex-col rounded-xl p-3 sm:p-4 aspect-[4/3] sm:aspect-square justify-between cursor-pointer transition-all active:scale-[0.97]', table.colorClass]"
+         >
+           <div class="flex justify-between items-start z-10">
+-            <span class="text-3xl font-black tracking-tighter">{{ table.name.replace('Table', '').trim() || table.id }}</span>
++            <span class="text-2xl sm:text-3xl font-black tracking-tighter">{{ table.name.replace('Table', '').trim() || table.id }}</span>
+             <div class="flex flex-col items-end gap-1">
+-              <div :class="['px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest', table.badgeClass]">
++              <div :class="['px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold uppercase tracking-wider sm:tracking-widest', table.badgeClass]">
+                 {{ table.statusText }}
+               </div>
+               <div v-if="notifications[table.id] && notifications[table.id].unreadCount > 0" class="flex items-center gap-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
+@@ -710,20 +1002,24 @@ const handleForceReset = async (table: any) => {
+                  <span class="material-symbols-outlined text-[12px]">receipt_long</span>
+                  <span>─É├ú in Bill</span>
+               </div>
++              <div v-if="table.isLocked" class="flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm mt-1 animate-pulse">
++                 <span class="material-symbols-outlined text-[12px]">lock</span>
++                 <span>Kh├│a</span>
++              </div>
+             </div>
+           </div>
+           
+           <div class="z-10">
+-            <div class="flex items-center gap-1.5 mb-1" :class="{ 'text-slate-500 dark:text-slate-400': !table.colorClass.includes('text-white') }">
+-              <span class="material-symbols-outlined text-sm">groups</span>
+-              <span class="text-sm font-bold">{{ table.guestCount }} Persons</span>
++            <div class="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1" :class="{ 'text-slate-500 dark:text-slate-400': !table.colorClass.includes('text-white') }">
++              <span class="material-symbols-outlined text-xs sm:text-sm">groups</span>
++              <span class="text-xs sm:text-sm font-bold">{{ table.guestCount }} kh├ích</span>
+             </div>
+-            <div class="flex items-center gap-1.5" :class="{ 'text-slate-400 dark:text-slate-500': !table.colorClass.includes('text-white') }">
+-              <span class="material-symbols-outlined text-sm">{{ table.icon }}</span>
+-              <span class="text-sm font-medium">{{ table.activeOrder ? `Ord #${table.activeOrder.id.substring(0,6)}` : 'Ready to seat' }}</span>
++            <div class="flex items-center gap-1 sm:gap-1.5" :class="{ 'text-slate-400 dark:text-slate-500': !table.colorClass.includes('text-white') }">
++              <span class="material-symbols-outlined text-xs sm:text-sm">{{ table.icon }}</span>
++              <span class="text-xs sm:text-sm font-medium truncate">{{ table.activeOrder ? `#${table.activeOrder.id.substring(0,6)}` : 'Sß║╡n s├áng' }}</span>
+             </div>
+             
+-            <button @click.stop="openChat(table.id, table.name)" class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all w-full justify-center relative shadow-sm border" :class="table.colorClass.includes('text-white') ? 'bg-white/20 hover:bg-white/30 border-white/20 text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:border-slate-700 border-slate-200 text-slate-700 dark:text-slate-300'">
++            <button @click.stop="openChat(table.id, table.name)" class="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all w-full justify-center relative shadow-sm border min-h-[36px] active:scale-95" :class="table.colorClass.includes('text-white') ? 'bg-white/20 hover:bg-white/30 border-white/20 text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:border-slate-700 border-slate-200 text-slate-700 dark:text-slate-300'">
+                <span class="material-symbols-outlined text-sm">chat</span>
+                Open Chat
+                <span v-if="notifications[table.id] && notifications[table.id].unreadCount > 0" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
+@@ -733,10 +1029,10 @@ const handleForceReset = async (table: any) => {
+             </button>
+           </div>
+           
+-          <div class="md:hidden mt-4 pt-4 border-t border-slate-200/20 dark:border-slate-700/50 flex gap-2">
+-            <button v-if="['occupied', 'serving'].includes(table.computedState)" @click.stop="router.push('/customer?tableId=' + table.id)" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm">Gß╗ìi m├│n</button>
+-            <button v-if="userStore.user && userStore.user.role !== 'kitchen'" @click.stop="handleViewPreview(table)" :disabled="isPreviewing || !table?.id || table.computedState === 'available'" class="flex-1 py-3 bg-white/20 hover:bg-white/30 text-slate-800 dark:text-white rounded-xl text-xs font-bold transition-all border border-slate-300 dark:border-slate-600 disabled:opacity-50">
+-              {{ isPreviewing && previewData?.tableId === table.id ? '─Éang tß║úi...' : 'In bill' }}
++          <div class="sm:hidden mt-2 pt-2 border-t border-slate-200/20 dark:border-slate-700/50 flex gap-1.5">
++            <button v-if="['occupied', 'serving'].includes(table.computedState)" @click.stop="router.push('/customer?tableId=' + table.id)" class="flex-1 py-2.5 bg-slate-800 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm min-h-[36px] active:scale-95">Gß╗ìi m├│n</button>
++            <button v-if="userStore.user && userStore.user.role !== 'kitchen' && hasConfirmedItemsForTable(table)" @click.stop="handleViewPreview(table)" :disabled="isPreviewing || !table?.id || table.computedState === 'available'" class="flex-1 py-2.5 bg-white/20 hover:bg-white/30 text-slate-800 dark:text-white rounded-lg text-[11px] font-bold transition-all border border-slate-300 dark:border-slate-600 disabled:opacity-50 min-h-[36px] active:scale-95">
++              {{ isPreviewing && previewData?.tableId === table.id ? '...' : 'In bill' }}
+             </button>
+             <button @click.stop="openTableModal(table.id)" class="flex-1 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">Thanh to├ín</button>
+           </div>
+@@ -784,27 +1080,32 @@ const handleForceReset = async (table: any) => {
+     </div>
+ 
+     <!-- Modal for Waiter Actions -->
+-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+-      <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col">
++    <div v-if="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4">
++      <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+         <!-- Modal Header -->
+-        <div class="flex justify-between items-center p-6 border-b border-slate-100 dark:border-slate-800">
++        <div class="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800">
+           <div>
+-            <h3 class="text-2xl font-bold">{{ selectedTable?.name }}</h3>
++            <h3 class="text-xl sm:text-2xl font-bold">{{ selectedTable?.name }}</h3>
+             <p class="text-sm text-slate-500">{{ selectedTable?.statusText }}</p>
+           </div>
+           <div class="flex gap-2">
+-            <button @click="handleForceReset(selectedTable)" :disabled="isResettingTable || !selectedTable?.id" class="px-3 py-1 bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 rounded-lg text-xs font-bold transition-colors border border-red-200 dark:border-red-800 disabled:opacity-50">
++            <button @click="handleToggleLock(selectedTable.id, selectedTable.isLocked)" :disabled="isTogglingLock || !selectedTable?.id" :class="['px-3 py-1.5 text-xs font-bold rounded-lg transition-colors border min-h-[36px] active:scale-95 flex items-center gap-1', selectedTable?.isLocked ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800' : 'bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 border-amber-200 dark:border-amber-800']">
++              <span v-if="isTogglingLock" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
++              <span class="material-symbols-outlined text-[14px]">{{ selectedTable?.isLocked ? 'lock_open' : 'lock' }}</span>
++              {{ selectedTable?.isLocked ? 'Mß╗ƒ kh├│a' : 'Kh├│a b├án' }}
++            </button>
++            <button @click="handleForceReset(selectedTable)" :disabled="isResettingTable || !selectedTable?.id" class="px-3 py-1.5 bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 rounded-lg text-xs font-bold transition-colors border border-red-200 dark:border-red-800 disabled:opacity-50 min-h-[36px] active:scale-95">
+               <span v-if="isResettingTable" class="material-symbols-outlined animate-spin text-[12px] align-middle mr-1">autorenew</span>
+               Force Reset
+             </button>
+-            <button @click="showModal = false" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
++            <button @click="showModal = false" class="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center">
+               <span class="material-symbols-outlined">close</span>
+             </button>
+           </div>
+         </div>
+         
+         <!-- Modal Body (Orders) -->
+-        <div class="p-6 overflow-y-auto max-h-[60vh] bg-slate-50/50 dark:bg-slate-900/10">
++        <div class="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-900/10">
+           <div v-if="!selectedTable?.tableOrders || selectedTable.tableOrders.length === 0" class="text-center text-slate-500 p-8">
+             <span class="material-symbols-outlined text-4xl mb-2">event_seat</span>
+             <p class="font-bold text-lg">Kh├┤ng c├│ dß╗» liß╗çu</p>
+@@ -813,101 +1114,130 @@ const handleForceReset = async (table: any) => {
+             <div v-for="order in selectedTable.tableOrders" :key="order.id" class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+               <div class="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-700/50 pb-2">
+                 <h4 class="font-bold text-slate-700 dark:text-slate-300">Order #{{ order.id.substring(0,6) }}</h4>
+-                <div class="flex items-center gap-2">
+-                  <button 
+-                    v-if="order.status === 'pending_confirmation'" 
+-                    @click="() => handleConfirmSpecificOrder(order.id)"
+-                    :disabled="isConfirmingOrder"
+-                    class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+-                  >
+-                    <span v-if="isConfirmingOrder" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
+-                    X├íc nhß║¡n
+-                  </button>
+-                  <span class="text-[10px] px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-900 font-bold uppercase tracking-wider text-slate-500">{{ order.status }}</span>
+-                </div>
++                <span :class="['text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider', orderStatusColor(order.status)]">{{ orderStatusLabel(order.status) }}</span>
+               </div>
+               
+-              <!-- EDITABLE MODE: pending_confirmation orders -->
+-              <template v-if="order.status === 'pending_confirmation'">
+-                {{ void initEditableItems(order) }}
+-                <div class="space-y-3 mb-3">
+-                  <div v-for="eItem in getEditableItems(order.id)" :key="eItem.itemId" class="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
+-                    <div class="flex justify-between items-center mb-2">
+-                      <p class="font-bold text-sm text-slate-800 dark:text-slate-200">{{ eItem.name }}</p>
+-                      <span class="text-sm font-bold text-primary">{{ formatCurrency(eItem.price * eItem.quantity) }}</span>
+-                    </div>
+-                    <div class="flex items-center justify-between gap-3">
+-                      <div class="flex items-center gap-2">
+-                        <button @click="editItemQty(order.id, eItem.itemId, -1)" class="size-7 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 flex items-center justify-center text-sm font-bold transition-colors">ΓêÆ</button>
+-                        <span class="text-sm font-bold w-6 text-center">{{ eItem.quantity }}</span>
+-                        <button @click="editItemQty(order.id, eItem.itemId, 1)" class="size-7 rounded-md bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center text-sm font-bold transition-colors">+</button>
++              <!-- Items list with individual actions -->
++                        <p :class="['font-bold text-sm', item.status === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200']">
++                          <span v-if="item.status === 'cancelled'">{{ item.quantity }}x </span>{{ item.name || item.menuItem?.name || 'M├│n ─ân' }}
++                        </p>
++                        <span :class="['text-[9px] px-1.5 py-0.5 rounded font-bold uppercase', itemStatusColor(item.status)]">
++                          {{ itemStatusLabel(item.status) }}
++                        </span>
++                      </div>
++                      
++                      <!-- POS controls for quantity & notes (shown for all active items) -->
++                      <div v-if="item.status !== 'cancelled'" class="mt-2 flex items-center gap-2">
++                        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Sß╗æ l╞░ß╗úng:</span>
++                        <div class="flex items-center gap-1.5">
++                          <button 
++                            @click.stop="handleUpdateQuantity(order.id, item, -1)"
++                            :disabled="item.status !== 'pending'"
++                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95 text-slate-700 dark:text-slate-300', item.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700']"
++                          >
++                            ΓêÆ
++                          </button>
++                          <span class="text-xs font-black w-6 text-center text-slate-800 dark:text-slate-100">{{ item.quantity }}</span>
++                          <button 
++                            @click.stop="handleUpdateQuantity(order.id, item, 1)"
++                            :disabled="item.status !== 'pending'"
++                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95', item.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300' : 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20']"
++                          >
++                            +
++                          </button>
++                        </div>
++                      </div>
++ 
++                      <div v-if="item.status !== 'cancelled'" class="mt-2 flex items-center gap-1.5 w-full">
++                        <span class="material-symbols-outlined text-slate-400 text-xs shrink-0">edit_note</span>
++                        <input 
++                          v-model="itemNotes[item.id]" 
++                          :disabled="item.status !== 'pending'"
++                          @blur="handleSaveItemNote(order.id, item)"
++                          @keydown.enter="handleSaveItemNote(order.id, item)"
++                          placeholder="Ghi ch├║ cho bß║┐p..." 
++                          :class="['flex-1 text-[11px] border rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary/50', item.status !== 'pending' ? 'opacity-60 cursor-not-allowed border-slate-100 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700']" 
++                        />
+                       </div>
+-                      <input 
+-                        v-model="eItem.note" 
+-                        placeholder="Ghi ch├║..." 
+-                        class="flex-1 text-xs border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 bg-white dark:bg-slate-800 focus:ring-1 focus:ring-primary/50 focus:border-primary"
+-                      />
++                    </div>
++                    <div class="flex items-center gap-2 shrink-0">
++                      <span :class="['text-sm font-bold mr-1', item.status === 'cancelled' ? 'text-slate-300 line-through' : 'text-slate-600 dark:text-slate-400']">
++                        {{ formatCurrency(Number(item.price) * item.quantity) }}
++                      </span>
+                     </div>
+                   </div>
+-                </div>
+-                <div class="flex justify-between items-center text-sm font-black pt-2 border-t border-slate-50 dark:border-slate-700/50">
+-                  <span class="text-slate-500">Tß╗òng Order (cß║¡p nhß║¡t)</span>
+-                  <span class="text-primary">{{ formatCurrency(getEditableTotal(order.id)) }}</span>
+-                </div>
+-              </template>
+-
+-              <!-- READ-ONLY MODE: confirmed/preparing/ready orders -->
+-              <template v-else>
+-                <div class="space-y-2 mb-3">
+-                  <div v-for="item in order.items" :key="item.id" class="flex justify-between items-start">
+-                    <div>
+-                      <p class="font-bold text-sm text-slate-800 dark:text-slate-200">{{ item.quantity }}x {{ item.name || item.menuItem?.name || 'Item' }}</p>
+-                      <p v-if="item.note" class="text-[11px] text-red-500 font-semibold flex items-center gap-0.5 mt-0.5">
+-                        <span class="material-symbols-outlined text-[11px]">warning</span> {{ item.note }}
+-                      </p>
++                  
++                  <!-- Individual Item Actions -->
++                  <div v-if="order.status !== 'cancelled' && item.status !== 'cancelled'" class="mt-1 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60 justify-end">em.price) * item.quantity) }}
++                      </span>
+                     </div>
+-                    <span class="text-sm font-bold text-slate-500">{{ formatCurrency(Number(item.price) * item.quantity) }}</span>
++                  </div>
++                  
++                  <!-- Individual Item Actions -->
++                  <div v-if="order.status !== 'cancelled' && item.status !== 'cancelled' && ['pending', 'confirmed'].includes(item.status)" class="mt-1 flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60 justify-end">
++                    <!-- Confirm individual pending item -->
++                    <button
++                      v-if="item.status === 'pending'"
++                      @click.stop="handleConfirmIndividualItem(order.id, item.id, item.name || 'M├│n ─ân')"
++                      :disabled="isConfirmingOrder"
++                      class="px-2.5 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50 active:scale-95"
++                    >
++                      <span v-if="isConfirmingOrder" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
++                      <span v-else class="material-symbols-outlined text-[14px]">check</span>
++                      X├íc nhß║¡n
++                    </button>
++                    
++                    <!-- Cancel individual pending item -->
++                    <button
++                      v-if="item.status === 'pending'"
++                      @click.stop="handleServiceCancelItem(order.id, item.id, item.name || 'M├│n ─ân')"
++                      :disabled="cancellingServiceItemId === item.id"
++                      class="px-2.5 py-1.5 bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 rounded-lg text-xs font-bold transition-colors border border-red-200 dark:border-red-800 disabled:opacity-50 flex items-center gap-1 active:scale-95"
++                    >
++                      <span v-if="cancellingServiceItemId === item.id" class="material-symbols-outlined animate-spin text-[12px]">refresh</span>
++                      <span v-else class="material-symbols-outlined text-[14px]">close</span>
++                      Hß╗ºy m├│n
++                    </button>
++                    
++                    <!-- Mark confirmed item as ready (cooked) -->
++                    <button
++                      v-if="item.status === 'confirmed'"
++                      @click.stop="handleMarkItemReady(order.id, item.id, item.name || 'M├│n ─ân')"
++                      :disabled="isUpdatingItemStatus === item.id"
++                      class="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50 active:scale-95"
++                    >
++                      <span v-if="isUpdatingItemStatus === item.id" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
++                      <span v-else class="material-symbols-outlined text-[14px]">restaurant</span>
++                      ─É├ú nß║Ñu
++                    </button>
+                   </div>
+                 </div>
+-                <div class="flex justify-between items-center text-sm font-black pt-2 border-t border-slate-50 dark:border-slate-700/50">
+-                  <span class="text-slate-500">Tß╗òng Order</span>
+-                  <span class="text-slate-800 dark:text-slate-200">{{ formatCurrency(order.totalAmount) }}</span>
+-                </div>
+-              </template>
++              </div>
++
++              <div class="flex justify-between items-center text-sm font-black pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-3">
++                <span class="text-slate-500">Tß╗òng Order</span>
++                <span class="text-slate-800 dark:text-slate-200">{{ formatCurrency(order.totalAmount) }}</span>
++              </div>
+             </div>
+           </div>
+         </div>
+ 
+         <!-- Modal Actions -->
+-        <div v-if="selectedTable" class="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 gap-2">
++        <div v-if="selectedTable" class="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 gap-2 shrink-0">
+           
+-          <template v-if="selectedTable?.computedState === 'waiting_confirm'">
+-            <!-- Waiting Confirm overarching button has been localized to explicit order cards -->
+-          </template>
+-          <button 
+-            v-else-if="selectedOrder?.status === 'pending_confirmation'" 
+-            @click="handleConfirmOrder"
+-            :disabled="isConfirmingOrder"
+-            class="w-full py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+-          >
+-            <span v-if="isConfirmingOrder" class="material-symbols-outlined animate-spin text-sm">autorenew</span>
+-            <span v-else class="material-symbols-outlined">thumb_up</span> 
+-            {{ isConfirmingOrder ? 'Confirming...' : 'Confirm Order & Send to Kitchen' }}
+-          </button>
+-
+-          <div v-else-if="['occupied', 'serving', 'paying'].includes(selectedTable.computedState)" class="flex flex-col gap-2">
++          <div v-if="['waiting_confirm', 'occupied', 'serving', 'paying'].includes(selectedTable.computedState)" class="flex flex-col gap-2">
+             <button 
+               @click="openStaffOrderModal(selectedTable.id)"
+-              class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
++              class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors min-h-[52px] active:scale-[0.98]"
+             >
+               <span class="material-symbols-outlined text-sm">restaurant_menu</span>
+               Th├¬m m├│n (Order more)
+             </button>
+-            <div class="flex gap-2" v-if="userStore.user && userStore.user.role !== 'kitchen'">
++            <div class="flex gap-2" v-if="userStore.user && userStore.user.role !== 'kitchen' && hasConfirmedItemsForTable(selectedTable)">
+               <button 
+                 @click="handleViewPreview(selectedTable)"
+                 :disabled="isPreviewing || !selectedTable?.id"
+-                class="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
++                class="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 min-h-[52px] active:scale-[0.98]"
+               >
+                 <span v-if="isPreviewing" class="material-symbols-outlined animate-spin text-sm">refresh</span>
+                 <span v-else class="material-symbols-outlined text-sm">receipt_long</span> 
+@@ -919,7 +1249,7 @@ const handleForceReset = async (table: any) => {
+           <div v-else-if="selectedTable.computedState === 'available'" class="flex flex-col gap-2">
+             <button 
+               @click="openStaffOrderModal(selectedTable.id)"
+-              class="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
++              class="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors min-h-[52px] active:scale-[0.98]"
+             >
+               <span class="material-symbols-outlined text-sm">add_circle</span>
+               ─Éß║╖t m├│n cho b├án n├áy
+@@ -934,8 +1264,8 @@ const handleForceReset = async (table: any) => {
+     <ChatModal v-if="chatTableId" :tableId="chatTableId" :tableName="chatTableName" @close="chatTableId = null" />
+ 
+     <!-- Bill Preview Modal -->
+-    <div v-if="showPreviewBill" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+-      <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
++    <div v-if="showPreviewBill" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200">
++      <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+         <div class="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+           <h3 class="font-bold text-lg">H├│a ─æ╞ín tß║ím t├¡nh</h3>
+           <button @click="showPreviewBill = false" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg flex items-center justify-center">
+@@ -944,21 +1274,37 @@ const handleForceReset = async (table: any) => {
+         </div>
+         <div class="p-4 bg-slate-50 dark:bg-slate-900/50 overflow-y-auto w-full custom-scrollbar flex flex-col items-center flex-1">
+             <div id="print-area" class="w-full max-w-[80mm] bg-white text-black p-4 rounded-lg shadow-sm">
+-                <PrintBill :data="previewData" />
++                <PrintBill :data="previewData" :paymentId="activePaymentId || undefined" />
+             </div>
+         </div>
+-        <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2 bg-white dark:bg-slate-900">
+-            <button @click="executePrint(false)" class="flex-1 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+-                <span class="material-symbols-outlined text-[18px]">print</span> In H├│a ─É╞ín
+-            </button>
++        <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2 bg-white dark:bg-slate-900">
++            <div class="flex gap-2">
++              <button @click="executePrint(false)" class="flex-1 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors text-sm">
++                  <span class="material-symbols-outlined text-[18px]">print</span> In Bill
++              </button>
++              <button 
++                v-if="!activePaymentId"
++                @click="handleCreateQRPayment"
++                :disabled="isCreatingPayment"
++                class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 text-sm"
++              >
++                  <span v-if="isCreatingPayment" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
++                  <span v-else class="material-symbols-outlined text-[18px]">qr_code_2</span> 
++                  {{ isCreatingPayment ? '─Éang tß║ío...' : 'Tß║ío QR' }}
++              </button>
++              <div v-else class="flex-1 py-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-bold flex items-center justify-center gap-2 text-sm">
++                  <span class="material-symbols-outlined text-[18px]">check_circle</span> QR ─æ├ú tß║ío
++              </div>
++            </div>
+             <button 
+               v-if="['occupied', 'serving', 'paying'].includes(selectedTable?.computedState)"
+               @click="handleFinalCheckout(selectedTable)"
+               :disabled="isProcessingPayment || !selectedTable?.id"
+-              class="flex-[1.5] py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+-            >    <span v-if="isProcessingPayment" class="material-symbols-outlined animate-spin text-[18px]">refresh</span>
++              class="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 text-sm"
++            >
++                <span v-if="isProcessingPayment" class="material-symbols-outlined animate-spin text-[18px]">refresh</span>
+                 <span v-else class="material-symbols-outlined text-[18px]">payments</span> 
+-                {{ isProcessingPayment ? '─Éang xß╗¡ l├╜...' : 'X├íc Nhß║¡n Thu Tiß╗ün' }}
++                {{ isProcessingPayment ? '─Éang xß╗¡ l├╜...' : 'Thu tiß╗ün mß║╖t (Cash)' }}
+             </button>
+         </div>
+       </div>
+@@ -1108,5 +1454,48 @@ const handleForceReset = async (table: any) => {
+       </div>
+     </div>
+ 
++    <!-- Checkout Warning Modal -->
++    <div v-if="showCheckoutWarning" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
++      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-red-100 dark:border-red-900/30">
++        <div class="p-5 flex flex-col items-center text-center">
++          <div class="size-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400 mb-4 shrink-0">
++            <span class="material-symbols-outlined text-2xl">warning</span>
++          </div>
++          <h3 class="font-bold text-lg text-slate-900 dark:text-white mb-2">Cß║únh b├ío: M├│n ch╞░a ho├án th├ánh</h3>
++          <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
++            B├án n├áy c├│ c├íc m├│n ch╞░a ho├án tß║Ñt nß║Ñu hoß║╖c ch╞░a ─æ╞░ß╗úc x├íc nhß║¡n:
++          </p>
++          
++          <div class="w-full bg-slate-50 dark:bg-slate-950/40 rounded-xl p-3 max-h-48 overflow-y-auto text-left mb-5 border border-slate-100 dark:border-slate-800 space-y-2">
++            <div v-for="item in nonReadyItems" :key="item.name" class="flex justify-between items-center text-xs">
++              <span class="font-semibold text-slate-800 dark:text-slate-200">{{ item.name }} (x{{ item.quantity }})</span>
++              <span :class="['px-2 py-0.5 rounded font-bold uppercase text-[9px]', itemStatusColor(item.status)]">
++                {{ itemStatusLabel(item.status) }}
++              </span>
++            </div>
++          </div>
++          
++          <p class="text-xs text-slate-400 dark:text-slate-500 mb-6">
++            Bß║ín c├│ chß║»c chß║»n muß╗æn tiß║┐p tß╗Ñc thanh to├ín v├á bß╗Å qua c├íc m├│n n├áy kh├┤ng?
++          </p>
++
++          <div class="flex gap-3 w-full">
++            <button 
++              @click="handleCancelCheckoutWarning" 
++              class="flex-1 py-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-all text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
++            >
++              Hß╗ºy
++            </button>
++            <button 
++              @click="handleConfirmCheckoutWarning" 
++              class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all text-sm shadow-sm"
++            >
++              Tiß║┐p tß╗Ñc thanh to├ín
++            </button>
++          </div>
++        </div>
++      </div>
++    </div>
++
+   </div>
+ </template>

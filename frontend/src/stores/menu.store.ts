@@ -22,8 +22,6 @@ export const useMenuStore = defineStore('menu', () => {
       ]);
       menuItems.value = itemsData;
       categories.value = catsData;
-      console.log('--- DEBUG: FETCHED MENU ITEMS ---', itemsData);
-      console.log('--- DEBUG: FETCHED CATEGORIES ---', catsData);
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch menu data';
     } finally {
@@ -31,5 +29,12 @@ export const useMenuStore = defineStore('menu', () => {
     }
   }
 
-  return { menuItems, categories, loading, error, fetchMenuItems };
+  function reset() {
+    menuItems.value = [];
+    categories.value = [];
+    loading.value = false;
+    error.value = null;
+  }
+
+  return { menuItems, categories, loading, error, fetchMenuItems, reset };
 });

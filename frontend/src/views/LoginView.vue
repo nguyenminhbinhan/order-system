@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user.store';
 
@@ -10,6 +10,23 @@ const email = ref('');
 const password = ref('');
 const isLoading = ref(false);
 const errorMsg = ref('');
+
+// Auto-redirect if already authenticated (e.g., refresh with valid token)
+onMounted(async () => {
+  if (userStore.isAuthenticated) {
+    // Rehydrate user data if needed
+    if (!userStore.user) {
+      await userStore.initSession();
+    }
+    if (userStore.user) {
+      const role = userStore.user.role || 'admin';
+      const target = role === 'admin' || role === 'manager' ? '/admin/dashboard' :
+                     role === 'service' ? '/service/tables' :
+                     role === 'kitchen' ? '/kitchen' : '/menu';
+      router.replace(target);
+    }
+  }
+});
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
@@ -80,7 +97,7 @@ const handleLogin = async () => {
     </div>
     
     <!-- Login Section -->
-    <div class="flex-1 flex flex-col justify-center items-center px-6 py-12 bg-white dark:bg-background-dark relative">
+    <div class="flex-1 flex flex-col justify-center items-center px-4 sm:px-6 py-8 sm:py-12 bg-white dark:bg-background-dark relative">
       <div class="w-full max-w-[420px]">
         <!-- Mobile Logo -->
         <div class="lg:hidden flex justify-center mb-10">
@@ -92,9 +109,9 @@ const handleLogin = async () => {
           </div>
         </div>
         
-        <div class="text-center lg:text-left mb-8">
-          <h2 class="text-3xl font-bold mb-2">Welcome back</h2>
-          <p class="text-slate-500 dark:text-slate-400">Enter your credentials to access your dashboard</p>
+        <div class="text-center lg:text-left mb-6 sm:mb-8">
+          <h2 class="text-2xl sm:text-3xl font-bold mb-2">Welcome back</h2>
+          <p class="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Enter your credentials to access your dashboard</p>
         </div>
         
         <!-- Error Message Banner -->
@@ -111,7 +128,7 @@ const handleLogin = async () => {
               <input 
                 v-model="email"
                 type="email" 
-                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400" 
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400 min-h-[48px]" 
                 placeholder="name@restaurant.com" 
                 required
               />
@@ -128,7 +145,7 @@ const handleLogin = async () => {
               <input 
                 v-model="password"
                 type="password"
-                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400" 
+                class="w-full pl-12 pr-4 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400 min-h-[48px]" 
                 placeholder="••••••••" 
                 required
               />
@@ -143,7 +160,7 @@ const handleLogin = async () => {
           <button 
             type="submit" 
             :disabled="isLoading"
-            class="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" 
+            class="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed min-h-[52px] active:scale-[0.98]" 
           >
             <span v-if="isLoading" class="material-symbols-outlined animate-spin align-middle">autorenew</span>
             <span>{{ isLoading ? 'Signing in...' : 'Sign in' }}</span>

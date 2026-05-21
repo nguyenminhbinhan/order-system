@@ -2,6 +2,7 @@
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
 import { socketService } from '@/services/socket';
 import { toast } from 'vue3-toastify';
+import { API_BASE_URL } from '@/utils/constants';
 
 const props = defineProps<{ tableId: number, tableName: string }>();
 const emit = defineEmits(['close']);
@@ -32,7 +33,7 @@ const formatTime = (dateStr: string) => {
 
 const fetchMessages = async () => {
   try {
-    const res = await fetch(`http://localhost:3000/messages/${props.tableId}`);
+    const res = await fetch(`${API_BASE_URL}/messages/${props.tableId}`);
     if (res.ok) {
       messages.value = await res.json();
       scrollToBottom();
@@ -66,7 +67,7 @@ const sendMessage = async () => {
   isSending.value = true;
   
   try {
-    await fetch('http://localhost:3000/messages', {
+    await fetch(`${API_BASE_URL}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableId: props.tableId, sender: 'service', content })

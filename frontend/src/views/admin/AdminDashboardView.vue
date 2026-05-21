@@ -178,7 +178,7 @@ const ordersChartData = computed(() => {
   };
 });
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -187,13 +187,15 @@ const chartOptions = {
   scales: {
     y: {
       beginAtZero: true,
-      grid: { color: 'rgba(0,0,0,0.05)' }
+      grid: { color: document.documentElement.classList.contains('dark') ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+      ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b' }
     },
     x: {
-      grid: { display: false }
+      grid: { display: false },
+      ticks: { color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b' }
     }
   }
-};
+}));
 
 onMounted(() => {
   fetchData();
@@ -220,14 +222,15 @@ onMounted(() => {
 onUnmounted(() => {
   socketService.offDashboardUpdated();
   socketService.off('paymentCompleted');
-  socketService.disconnect();
+  // DO NOT call socketService.disconnect() here — it kills realtime for all admin views.
+  // The socket should remain alive as long as the user is authenticated.
 });
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
-    <!-- Sidebar Navigation -->
-    <aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0">
+    <!-- Sidebar Navigation — hidden on mobile -->
+    <aside class="hidden lg:flex w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col shrink-0">
       <div class="p-6 flex items-center gap-3">
         <div class="size-10 rounded-xl bg-primary flex items-center justify-center text-white">
           <span class="material-symbols-outlined">analytics</span>
@@ -288,7 +291,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Header -->
-      <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-10 shrink-0">
+      <header class="h-14 sm:h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-3 sm:px-4 lg:px-8 sticky top-0 z-10 shrink-0">
         <div class="flex items-center gap-4 flex-1 max-w-xl">
           <div class="relative w-full">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
@@ -300,65 +303,65 @@ onUnmounted(() => {
         </div>
       </header>
       
-      <div class="p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full pb-24 lg:pb-8">
         <!-- Page Title -->
         <div class="flex flex-col gap-1">
-          <h2 class="text-3xl font-black tracking-tight">Dashboard Overview</h2>
-          <p class="text-slate-500 font-medium">Welcome back. Here's what's happening today.</p>
+          <h2 class="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight">Dashboard</h2>
+          <p class="text-slate-500 font-medium text-sm sm:text-base">Tổng quan hôm nay</p>
         </div>
 
-        <!-- Metrics Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Metrics Grid — 2-col mobile, 4-col desktop -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <!-- Revenue Card -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <div class="size-10 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center">
                 <span class="material-symbols-outlined">payments</span>
               </div>
             </div>
-            <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Revenue Today</p>
-            <h3 class="text-3xl font-extrabold text-green-600 dark:text-green-500">{{ formatCurrency(dashboardData.revenue?.totalRevenue || dashboardData.totalRevenueToday) }}</h3>
+            <p class="text-slate-500 text-[10px] sm:text-sm font-semibold uppercase tracking-wider mb-1">Doanh thu</p>
+            <h3 class="text-lg sm:text-2xl lg:text-3xl font-extrabold text-green-600 dark:text-green-500">{{ formatCurrency(dashboardData.revenue?.totalRevenue || dashboardData.totalRevenueToday) }}</h3>
           </div>
           
           <!-- Sessions Card -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <div class="size-10 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
                 <span class="material-symbols-outlined">history</span>
               </div>
             </div>
-            <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Sessions</p>
-            <h3 class="text-3xl font-extrabold text-blue-600 dark:text-blue-500">{{ dashboardData.revenue?.totalSessions }}</h3>
+            <p class="text-slate-500 text-[10px] sm:text-sm font-semibold uppercase tracking-wider mb-1">Phiên</p>
+            <h3 class="text-lg sm:text-2xl lg:text-3xl font-extrabold text-blue-600 dark:text-blue-500">{{ dashboardData.revenue?.totalSessions }}</h3>
           </div>
 
           <!-- Orders Card -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <div class="size-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 <span class="material-symbols-outlined">receipt_long</span>
               </div>
             </div>
-            <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Orders Today</p>
-            <h3 class="text-3xl font-extrabold text-primary">{{ dashboardData.totalOrdersToday }}</h3>
+            <p class="text-slate-500 text-[10px] sm:text-sm font-semibold uppercase tracking-wider mb-1">Đơn hàng</p>
+            <h3 class="text-lg sm:text-2xl lg:text-3xl font-extrabold text-primary">{{ dashboardData.totalOrdersToday }}</h3>
           </div>
 
           <!-- Tables Card -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <div class="size-10 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
                 <span class="material-symbols-outlined">table_restaurant</span>
               </div>
             </div>
-            <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Active Tables (Occupied)</p>
-            <h3 class="text-3xl font-extrabold text-amber-500">{{ dashboardData.activeTables }}</h3>
+            <p class="text-slate-500 text-[10px] sm:text-sm font-semibold uppercase tracking-wider mb-1">Bàn hoạt động</p>
+            <h3 class="text-lg sm:text-2xl lg:text-3xl font-extrabold text-amber-500">{{ dashboardData.activeTables }}</h3>
           </div>
         </div>
 
         <!-- Main Section: Charts and Recent Activity -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           <!-- Chart Column -->
-          <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm h-[400px] flex flex-col">
+          <div class="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm h-[280px] sm:h-[350px] lg:h-[400px] flex flex-col">
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <h3 class="text-lg font-bold">Revenue by Hour</h3>
@@ -544,5 +547,29 @@ onUnmounted(() => {
         </div>
       </div>
     </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex items-center justify-around py-2 px-1 safe-area-pb">
+      <router-link to="/admin/dashboard" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span>
+        <span class="text-[9px] font-bold">Dashboard</span>
+      </router-link>
+      <router-link to="/admin/menu" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
+        <span class="text-[9px] font-bold">Menu</span>
+      </router-link>
+      <router-link to="/admin/tables" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
+        <span class="text-[9px] font-bold">Bàn</span>
+      </router-link>
+      <router-link to="/admin/qr" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-primary transition-colors min-w-[56px]" exact-active-class="!text-primary">
+        <span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+        <span class="text-[9px] font-bold">QR</span>
+      </router-link>
+      <button @click="userStore.logout" class="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-slate-400 hover:text-red-500 transition-colors min-w-[56px]">
+        <span class="material-symbols-outlined text-[20px]">logout</span>
+        <span class="text-[9px] font-bold">Thoát</span>
+      </button>
+    </nav>
   </div>
 </template>

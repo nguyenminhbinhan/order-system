@@ -18,6 +18,8 @@ const orderData = ref<any>(null);
 const loading = ref(true);
 const error = ref('');
 
+const formatTableName = (name: string) => name ? 'Bàn ' + name.replace(/Table|Bàn/gi, '').trim() : '';
+
 const fetchOrder = async () => {
   try {
     const data = await orderStore.fetchOrderById(orderId);
@@ -42,25 +44,34 @@ onMounted(() => {
   socketService.joinCustomer(orderId);
   
   socketService.onOrderUpdated((payload) => {
-    if (orderData.value && orderData.value.id === payload.orderId) {
-      orderData.value.status = payload.status;
-      if (payload.status === 'completed' || payload.status === 'cancelled') {
-         orderStore.clearOrderId();
-         orderStore.clearTableId();
-      }
+    if (orderData.value && (payload.id === orderId || payload.orderId === orderId)) {
+      fetchOrder();
+    }
+  });
+
+  socketService.onItemStatusChanged((payload) => {
+    if (orderData.value && payload.orderId === orderId) {
+      fetchOrder();
     }
   });
 
   // Listen for payment completion
   socketService.on('paymentCompleted', (payload: any) => {
     if (orderData.value && Number(payload.tableId) === Number(orderData.value.tableId)) {
-      showThankYou.value = true;
+      cartStore.clearCart();
+      if (orderStore.activeTableId) {
+        cartStore.clearStorage(orderStore.activeTableId);
+      }
+      orderStore.clearTableId();
+      orderStore.clearOrderId();
+      router.replace({ path: '/customer', query: { thankyou: 'true' } });
     }
   });
 });
 
 onUnmounted(() => {
   socketService.offOrderUpdated();
+  socketService.offItemStatusChanged();
   socketService.off('paymentCompleted');
   socketService.disconnect();
 });
@@ -89,18 +100,19 @@ const handleRestart = () => {
 const statusInfo = computed(() => {
   const status = orderData.value?.status || 'pending';
   switch (status) {
+    case 'pending_confirmation':
     case 'pending': 
-      return { text: 'Order Received', color: 'bg-slate-500', progress: 10, msg: 'Waiting for kitchen to accept.' };
+      return { text: 'Chờ xác nhận', color: 'bg-yellow-500', progress: 20, msg: 'Đang chờ nhà hàng xác nhận đơn hàng.' };
+    case 'confirmed':
+      return { text: 'Đã nhận đơn', color: 'bg-blue-500', progress: 40, msg: 'Đơn hàng đã được xác nhận và gửi xuống bếp!' };
     case 'preparing': 
-      return { text: 'Preparing', color: 'bg-primary', progress: 50, msg: 'Chef is preparing your meal!' };
+      return { text: 'Đang nấu', color: 'bg-primary', progress: 70, msg: 'Đầu bếp đang chuẩn bị món ăn cho bạn!' };
     case 'ready': 
-      return { text: 'Ready for Pickup', color: 'bg-green-500', progress: 100, msg: 'Your food is ready!' };
-    case 'completed': 
-      return { text: 'Completed', color: 'bg-slate-800', progress: 100, msg: 'Order finished.' };
+      return { text: 'Sẵn sàng phục vụ', color: 'bg-emerald-500', progress: 100, msg: 'Món ăn của bạn đã nấu xong!' };
     case 'cancelled': 
-      return { text: 'Cancelled', color: 'bg-red-500', progress: 0, msg: 'Order was cancelled.' };
+      return { text: 'Đã hủy', color: 'bg-red-500', progress: 0, msg: 'Đơn hàng đã bị hủy.' };
     default: 
-      return { text: 'Unknown', color: 'bg-slate-500', progress: 0, msg: '' };
+      return { text: 'Không xác định', color: 'bg-slate-500', progress: 0, msg: '' };
   }
 });
 </script>
@@ -148,7 +160,12 @@ const statusInfo = computed(() => {
         <div class="px-6 pt-8 pb-6 border-b border-slate-100 dark:border-slate-800">
           <div class="flex justify-between items-start mb-2">
             <div>
-              <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Order #{{ orderData.id }}</p>
+              <p class="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span>Order #{{ orderData.id }}</span>
+                <span v-if="orderData.tableId || orderData.table?.name" class="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-xs font-bold text-slate-600 dark:text-slate-350 select-none">
+                  {{ formatTableName(orderData.table?.name || String(orderData.tableId)) }}
+                </span>
+              </p>
               <h2 class="text-2xl font-bold mt-1" :class="`text-${statusInfo.color.split('-')[1]}-500`">
                 {{ statusInfo.text }}
               </h2>
