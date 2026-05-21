@@ -8,8 +8,13 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const corsOrigin = process.env.CORS_ORIGIN;
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigin
+      ? corsOrigin.includes(',')
+        ? corsOrigin.split(',').map((o) => o.trim())
+        : corsOrigin
+      : ['http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true,
   });
   app.useGlobalFilters(new GlobalExceptionFilter());

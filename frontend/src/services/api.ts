@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/utils/constants';
 import { toast } from 'vue3-toastify';
+import { h } from 'vue';
 
 // Create a configured Axios instance
 export const apiClient = axios.create({
@@ -86,6 +87,8 @@ apiClient.interceptors.request.use(
         path.startsWith('/payment') || 
         path === '/' || 
         path.startsWith('/tables') ||
+        path.startsWith('/table/') ||
+        path.startsWith('/table') ||
         path.startsWith('/menu');
       
       if (!isPublicRoute) {
@@ -227,7 +230,6 @@ apiClient.interceptors.response.use(
       const toastId = toast.error(
         {
           setup() {
-            const { h } = require('vue');
             return () => h('div', [
               h('p', message),
               h('button', {

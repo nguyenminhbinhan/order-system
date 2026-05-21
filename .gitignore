@@ -1,58 +1,75 @@
-# compiled output
+# Compiled Output
 node_modules/
 dist/
+dist-ssr/
 build/
+bin/
+obj/
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
 
-# OS
+# OS Junk
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# Tests
-/coverage
-/.nyc_output
+# Tests and Coverage
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+__screenshots__/
 
-# IDEs and editors
-/.idea
+# IDEs and Editors
+.idea/
 .project
 .classpath
 .c9/
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
+*.sublime-project
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.tsbuildinfo
+.eslintcache
 
-# dotenv environment variable files
+# dotenv environment files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
-# temp directory
-.temp
-.tmp
-
-# Runtime data
+# Temporary / Cache / Runtime Data
+.temp/
+.tmp/
 pids
 *.pid
 *.seed
 *.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
+*.timestamp-*-*.mjs
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
+# Prisma generated files
 generated/prisma/
+backend/prisma/generated/
+

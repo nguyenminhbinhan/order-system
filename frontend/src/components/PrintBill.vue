@@ -116,8 +116,8 @@ const props = defineProps<{
 }>();
 
 const FRONTEND_URL = typeof window !== 'undefined' 
-  ? `${window.location.protocol}//${window.location.host}` 
-  : 'http://localhost:5173';
+  ? window.location.origin 
+  : '';
 
 const paymentUrl = computed(() => {
   if (!props.paymentId) return '';

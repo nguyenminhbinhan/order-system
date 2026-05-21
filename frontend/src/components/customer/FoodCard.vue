@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useCartStore } from '@/stores/cart.store';
+import { API_BASE_URL } from '@/utils/constants';
 
 const props = defineProps<{
   item: any;
@@ -14,7 +15,7 @@ const formatCurrency = (value: number) => {
 };
 
 const imageUrl = computed(() => {
-  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const BASE_URL = API_BASE_URL;
   let imgFilename = props.item.imageFilename;
   
   if (!imgFilename && props.item.images && props.item.images.length > 0) {

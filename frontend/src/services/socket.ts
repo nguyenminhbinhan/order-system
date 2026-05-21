@@ -2,8 +2,9 @@
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'vue3-toastify';
 
-// @ts-ignore: Vite env var
-const SOCKET_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
+import { API_BASE_URL } from '@/utils/constants';
+
+const SOCKET_URL = API_BASE_URL;
 
 /**
  * Centralized Socket.io service for the restaurant QR ordering system.

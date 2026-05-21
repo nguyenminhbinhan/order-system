@@ -3,10 +3,12 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { socketService } from '@/services/socket';
 
+import { API_BASE_URL } from '@/utils/constants';
+
 const route = useRoute();
 const paymentId = computed(() => route.params.paymentId as string);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = API_BASE_URL;
 
 // ==========================================
 // STATE MACHINE

@@ -26,8 +26,7 @@ onMounted(() => {
 
 const generateQRUrl = (table: any) => {
   // Use VITE_FRONTEND_URL from env, or fall back to current origin
-  const baseUrl = (import.meta as any).env?.VITE_FRONTEND_URL || 
-    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+  const baseUrl = (import.meta as any).env?.VITE_FRONTEND_URL || window.location.origin;
   // Use qrToken for production-safe URLs (no raw IDs)
   return `${baseUrl}/table/${table.qrToken}`;
 };
