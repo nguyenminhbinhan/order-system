@@ -1,11 +1,7 @@
-# Build output
-frontend/dist
-backend/dist
-frontend/build
-
-# Dependencies
-frontend/node_modules
-backend/node_modules
+# compiled output
+node_modules/
+dist/
+build/
 
 # Logs
 logs
@@ -56,8 +52,7 @@ pids
 *.seed
 *.pid.lock
 
-# Diagnostic reports
+# Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# Generated files
-/generated/prisma
+generated/prisma/
