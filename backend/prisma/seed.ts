@@ -1,7 +1,31 @@
+import { PrismaClient, Category } from "@prisma/client";
+import bcrypt from "bcrypt";
+
+const prisma = new PrismaClient();
+
+function randomBool() {
+  return Math.random() < 0.5;
+}
+
+function randomPrice(min = 50000, max = 200000) {
+  const value = Math.floor(Math.random() * (max - min)) + min;
+  return Math.round(value / 10000) * 10000;
+}
+
+const DISH_NAMES = [
+  "Phở bò tái", "Phở gà", "Bún bò Huế", "Bún riêu cua", "Bún chả Hà Nội",
+  "Cơm tấm sườn", "Cơm gà xối mỡ", "Cơm chiên hải sản", "Mì xào bò", "Mì xào hải sản",
+  "Hủ tiếu Nam Vang", "Bánh mì thịt", "Bánh mì xíu mại", "Bánh cuốn", "Cháo sườn",
+  "Cháo gà", "Gỏi cuốn", "Nem rán", "Chả giò", "Bánh xèo",
+  "Lẩu thái hải sản", "Lẩu bò nhúng dấm", "Cá kho tộ", "Thịt kho trứng", "Canh chua cá",
+  "Gà kho sả ớt", "Sườn xào chua ngọt", "Bò lúc lắc", "Bò kho bánh mì", "Gà chiên nước mắm",
+  "Mực xào sa tế", "Tôm rim mặn ngọt", "Ốc xào me", "Ốc luộc sả", "Đậu hũ chiên giòn",
+  "Rau muống xào tỏi", "Canh cải thịt bằm", "Canh rong biển", "Trứng chiên hành", "Salad trộn dầu giấm",
+];
+
 async function main() {
   console.log("🌱 Seeding data...");
 
-  // ✅ Check user trước khi create
   let user = await prisma.user.findUnique({
     where: { email: "admin@gmail.com" },
   });
@@ -19,9 +43,11 @@ async function main() {
         phone: "0123456789",
       },
     });
+    console.log("✅ Created admin user");
+  } else {
+    console.log("⏭️ Admin user already exists");
   }
 
-  // ✅ Check categories
   const existingCategories = await prisma.category.findMany();
   let categories: Category[] = existingCategories;
 
@@ -32,9 +58,11 @@ async function main() {
       });
       categories.push(category);
     }
+    console.log("✅ Created categories");
+  } else {
+    console.log("⏭️ Categories already exist");
   }
 
-  // ✅ Check menu items
   const existingItems = await prisma.menuItem.count();
   if (existingItems === 0) {
     for (let i = 0; i < DISH_NAMES.length; i++) {
@@ -63,9 +91,11 @@ async function main() {
         },
       });
     }
+    console.log("✅ Created menu items");
+  } else {
+    console.log("⏭️ Menu items already exist");
   }
 
-  // ✅ Check tables
   const existingTables = await prisma.table.count();
   if (existingTables === 0) {
     for (let i = 1; i <= 10; i++) {
@@ -77,7 +107,19 @@ async function main() {
         },
       });
     }
+    console.log("✅ Created tables");
+  } else {
+    console.log("⏭️ Tables already exist");
   }
 
   console.log("✅ Seed data created successfully!");
 }
+
+main()
+  .catch((err) => {
+    console.error("❌ Seed error:", err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

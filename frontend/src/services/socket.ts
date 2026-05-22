@@ -33,7 +33,7 @@ class SocketService {
   connect() {
     if (!this.socket) {
       this.socket = io(`${SOCKET_URL}/orders`, {
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'], // ✅ polling trước, websocket sau
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: Infinity,
