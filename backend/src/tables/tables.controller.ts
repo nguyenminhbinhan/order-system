@@ -41,6 +41,11 @@ export class TablesController {
     return this.tablesService.getSessionStatus(id);
   }
 
+  @Get('sessions/:sessionId/bill-snapshot')
+  getBillSnapshot(@Param('sessionId') sessionId: string) {
+    return this.tablesService.getBillSnapshot(sessionId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.tablesService.findOne(id);

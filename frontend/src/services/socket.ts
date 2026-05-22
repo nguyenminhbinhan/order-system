@@ -224,6 +224,29 @@ class SocketService {
     }
   }
 
+  private messageListeners = new Map<string, (msg: any) => void>();
+
+  onNewMessage(key: string, callback: (msg: any) => void) {
+    this.messageListeners.set(key, callback);
+    if (this.socket) {
+      this.socket.off('newMessage');
+      this.socket.on('newMessage', (msg) => {
+        this.messageListeners.forEach((cb) => cb(msg));
+      });
+    }
+  }
+
+  offNewMessage(key: string) {
+    this.messageListeners.delete(key);
+    if (this.socket) {
+      this.socket.off('newMessage');
+      if (this.messageListeners.size > 0) {
+        this.socket.on('newMessage', (msg) => {
+          this.messageListeners.forEach((cb) => cb(msg));
+        });
+      }
+    }
+  }
 
   off(event: string) {
     if (this.socket) {
@@ -231,7 +254,6 @@ class SocketService {
     }
   }
 
-  
   private lastCartEmit = 0;
 
   emitCartUpdate(payload: { tableId: number; tableName: string; itemCount: number; description: string }) {

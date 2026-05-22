@@ -228,6 +228,7 @@ export class TablesService {
     return {
       active: false,
       endedAt: lastSession?.endedAt || null,
+      sessionId: lastSession?.id || null,
     };
   }
 
@@ -343,7 +344,7 @@ export class TablesService {
       this.orderGateway.server.to('service').emit('tableUpdated', tableId);
       this.orderGateway.server.to('kitchen').emit('tableUpdated', tableId);
       return { success: true };
-    });
+    }, { timeout: 20000 });
   }
 
   async getTableDebug(id: number) {
@@ -580,10 +581,16 @@ export class TablesService {
       const session = await tx.tableSession.findFirst({
         where: { tableId, endedAt: null },
         orderBy: { startedAt: 'desc' },
-        include: { orders: { include: { items: true } } }
+        include: {
+          table: true,
+          orders: {
+            where: { status: { not: 'cancelled' } },
+            include: {
+              items: { include: { menuItem: true } }
+            }
+          }
+        }
       });
-
-
 
       if (!session) {
         throw new BadRequestException('NO_ACTIVE_SESSION');
@@ -593,26 +600,58 @@ export class TablesService {
         throw new BadRequestException('Bàn chưa có order');
       }
 
-      // Calculate total of only ready items
-      let totalAmount = 0;
+      // Build aggregated item list of only ready items, excluding cancelled items/orders
+      const itemMap = new Map<string, { name: string; price: number; quantity: number; note: string }>();
+
       for (const order of session.orders) {
-        if (order.status !== 'cancelled') {
-          for (const item of order.items) {
-            if (item.status === 'ready') {
-              totalAmount += Number(item.price || 0) * item.quantity;
+        for (const item of order.items) {
+          if (item.status === 'ready') {
+            const price = Number(item.price || 0);
+            const key = `${item.menuItemId}-${item.note || ''}`;
+
+            if (itemMap.has(key)) {
+              itemMap.get(key)!.quantity += item.quantity;
+            } else {
+              itemMap.set(key, {
+                name: item.name || item.menuItem?.name || 'Món ăn',
+                price,
+                quantity: item.quantity,
+                note: item.note || '',
+              });
             }
           }
         }
       }
 
+      const items = Array.from(itemMap.values());
+      const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
       if (totalAmount === 0) {
         throw new BadRequestException('Chưa có món nào hoàn tất để thanh toán');
       }
 
+      const paidAt = new Date();
+      const billSnapshot = {
+        tableId: session.tableId,
+        tableNumber: session.table?.name?.replace('Table', '').trim() || String(session.tableId),
+        tableName: session.table?.name || `Bàn ${session.tableId}`,
+        sessionId: session.id,
+        startedAt: session.startedAt,
+        paidAt,
+        items,
+        subtotal: totalAmount,
+        total: totalAmount,
+      };
+
       // Close session
       await tx.tableSession.update({
         where: { id: session.id },
-        data: { endedAt: new Date(), paidAt: new Date(), totalAmount }
+        data: {
+          endedAt: paidAt,
+          paidAt,
+          totalAmount,
+          billSnapshot: billSnapshot as any,
+        }
       });
 
       // Reset Table
@@ -630,16 +669,16 @@ export class TablesService {
           userId: user?.id || null,
           action: 'CHECKOUT',
           tableId: tableId,
-          metadata: { totalAmount }
+          metadata: { totalAmount, sessionId: session.id }
         }
       });
 
-      return { totalAmount };
-    });
+      return { totalAmount, sessionId: session.id };
+    }, { timeout: 20000 });
 
     // Use centralized gateway emission
-    this.orderGateway.emitPaymentCompleted({ tableId });
-    return { success: true, totalAmount: transactionResult.totalAmount };
+    this.orderGateway.emitPaymentCompleted({ tableId, sessionId: transactionResult.sessionId });
+    return { success: true, totalAmount: transactionResult.totalAmount, sessionId: transactionResult.sessionId };
   }
 
   /**
@@ -792,5 +831,15 @@ export class TablesService {
     });
 
     return { success: true, isLocked: false };
+  }
+
+  async getBillSnapshot(sessionId: string) {
+    const session = await this.prisma.tableSession.findUnique({
+      where: { id: sessionId }
+    });
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    return session.billSnapshot || null;
   }
 }

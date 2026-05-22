@@ -167,7 +167,7 @@ export class OrdersService {
       });
 
       return newOrder;
-    });
+    }, { timeout: 20000 });
 
     this.orderGateway.emitNewOrderCreated(order);
     this.orderGateway.server.to('service').emit('tableUpdated', dto.tableId);
@@ -277,7 +277,7 @@ export class OrdersService {
       }
 
       return uOrder;
-    });
+    }, { timeout: 20000 });
 
     // Socket notifications
     this.orderGateway.server.to('service').emit('tableUpdated', updatedOrder.tableId);
@@ -336,7 +336,7 @@ export class OrdersService {
       });
 
       return confirmed;
-    });
+    }, { timeout: 20000 });
 
     this.orderGateway.server.to('service').emit('tableUpdated', updatedOrder.tableId);
     this.orderGateway.emitOrderUpdated(updatedOrder);
@@ -418,7 +418,7 @@ export class OrdersService {
       }
 
       return result;
-    });
+    }, { timeout: 20000 });
 
     // Socket emissions
     this.orderGateway.server.to('service').emit('tableUpdated', updatedOrder.tableId);
@@ -507,7 +507,7 @@ export class OrdersService {
       }
 
       return result;
-    });
+    }, { timeout: 20000 });
 
     // Socket emissions
     this.orderGateway.emitItemStatusChanged({
@@ -592,7 +592,7 @@ export class OrdersService {
       });
 
       return confirmed;
-    });
+    }, { timeout: 20000 });
 
     // Socket events
     this.orderGateway.server.to('service').emit('tableUpdated', updatedOrder.tableId);
@@ -694,7 +694,7 @@ export class OrdersService {
       });
 
       return updatedOrder;
-    });
+    }, { timeout: 20000 });
 
     // 9. Socket emissions
     this.orderGateway.emitOrderItemCancelled({
@@ -784,7 +784,7 @@ export class OrdersService {
         data: { status: newOrderStatus, totalAmount: newTotal },
         include: this.fullInclude(),
       });
-    });
+    }, { timeout: 20000 });
 
     this.orderGateway.server.to('service').emit('tableUpdated', order.tableId);
     this.orderGateway.emitOrderUpdated(result);

@@ -64,6 +64,27 @@ async function run() {
     const updated = await uRes.json();
     console.log("Waiter -> Confirmed Order:", updated.status);
 
+    // Transition all items in the order to 'ready'
+    if (updated.items && updated.items.length > 0) {
+      for (const item of updated.items) {
+        const itemRes = await fetch(`${baseUrl}/orders/${orderData.id}/items/${item.id}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+          },
+          body: JSON.stringify({ status: 'ready' })
+        });
+        if (!itemRes.ok) {
+          const errText = await itemRes.text();
+          console.error(`Failed to update item status: ${errText}`);
+        } else {
+          console.log(`Updated item ${item.name} status to ready`);
+        }
+      }
+    }
+
+
     // 6. Preview Bill
     const pRes = await fetch(`${baseUrl}/tables/${tableId}/preview-bill`, {
       method: 'GET',

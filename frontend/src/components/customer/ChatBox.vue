@@ -3,7 +3,11 @@ import { ref, onMounted, nextTick, onUnmounted } from 'vue';
 import { socketService } from '@/services/socket';
 import { apiClient } from '@/services/api';
 
-const props = defineProps<{ tableId: number }>();
+const props = defineProps<{ 
+  tableId: number;
+  fullHeight?: boolean;
+  hideHeader?: boolean;
+}>();
 const messages = ref<any[]>([]);
 const newMessage = ref('');
 const isSending = ref(false);
@@ -41,8 +45,8 @@ const fetchMessages = async () => {
 onMounted(() => {
   fetchMessages();
   
-  // Directly bind onto native websocket listener instead of going thru OrderStore
-  socketService.on('newMessage', (msg) => {
+  // Register with unique key 'ChatBox'
+  socketService.onNewMessage('ChatBox', (msg) => {
     if (msg.tableId === props.tableId) {
       messages.value.push(msg);
       scrollToBottom();
@@ -51,7 +55,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  socketService.off('newMessage');
+  socketService.offNewMessage('ChatBox');
 });
 
 const sendMessage = async () => {
@@ -72,8 +76,11 @@ const sendMessage = async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-lg mt-4 mb-4">
-    <div class="bg-primary p-3 text-white font-bold flex justify-between items-center z-10">
+  <div :class="[
+    'flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-lg',
+    fullHeight ? 'h-full m-0 rounded-none border-none shadow-none' : 'h-80 mt-4 mb-4'
+  ]">
+    <div v-if="!hideHeader" class="bg-primary p-3 text-white font-bold flex justify-between items-center z-10">
       <div class="flex items-center gap-2">
          <span class="material-symbols-outlined text-sm">support_agent</span>
          <span class="text-sm">Talk to Server</span>

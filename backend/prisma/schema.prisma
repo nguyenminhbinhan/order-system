@@ -215,6 +215,7 @@ model TableSession {
   totalAmount Decimal   @default(0)
   billPrinted Boolean   @default(false)
   paidAt      DateTime?
+  billSnapshot Json?
 
   table  Table   @relation(fields: [tableId], references: [id])
   orders Order[]

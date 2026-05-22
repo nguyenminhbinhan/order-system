@@ -28,6 +28,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     this.logger.error(`[${request.method}] ${request.url} - Status: ${status} - Error: ${message}`);
+    if (!(exception instanceof HttpException)) {
+      this.logger.error(exception);
+    }
 
     response.status(status).json({
       success: false,

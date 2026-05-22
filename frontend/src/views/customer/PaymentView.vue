@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { socketService } from '@/services/socket';
 
 import { API_BASE_URL } from '@/utils/constants';
 
 const route = useRoute();
+const router = useRouter();
 const paymentId = computed(() => route.params.paymentId as string);
 
 const API_URL = API_BASE_URL;
@@ -44,9 +45,15 @@ const fetchPaymentInfo = async () => {
     paymentData.value = data;
 
     if (data.status === 'paid') {
-      state.value = 'already_paid';
-      // Save to localStorage for persistence
-      savePaymentToLocal(data);
+      localStorage.removeItem('tableId');
+      localStorage.removeItem('orderId');
+      localStorage.removeItem('sessionToken');
+      localStorage.removeItem('cart');
+      if (data.tableId) {
+        socketService.leaveTable(Number(data.tableId));
+      }
+      router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: data.sessionId } });
+      return;
     } else if (data.status === 'failed') {
       errorMessage.value = 'Thanh toán này đã bị hủy.';
       state.value = 'error';
@@ -85,14 +92,19 @@ const handleConfirmPayment = async () => {
 
     const data = await res.json();
     
-    if (data.alreadyPaid) {
-      state.value = 'already_paid';
-    } else {
-      state.value = 'success';
-    }
-
     // Save to local storage for persistence
     savePaymentToLocal(paymentData.value);
+
+    // Clear ordering session state from storage
+    localStorage.removeItem('tableId');
+    localStorage.removeItem('orderId');
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('cart');
+    if (paymentData.value?.tableId) {
+      socketService.leaveTable(Number(paymentData.value.tableId));
+    }
+
+    router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: data.sessionId } });
   } catch (err) {
     errorMessage.value = 'Lỗi kết nối. Vui lòng thử lại.';
     state.value = 'review';
@@ -151,8 +163,12 @@ onMounted(() => {
   socketService.connect();
   socketService.on('paymentCompleted', (payload: any) => {
     if (paymentData.value && Number(payload.tableId) === Number(paymentData.value.tableId)) {
-      state.value = 'success';
-      savePaymentToLocal(paymentData.value);
+      localStorage.removeItem('tableId');
+      localStorage.removeItem('orderId');
+      localStorage.removeItem('sessionToken');
+      localStorage.removeItem('cart');
+      socketService.leaveTable(Number(payload.tableId));
+      router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: payload.sessionId } });
     }
   });
 });

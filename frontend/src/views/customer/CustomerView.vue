@@ -123,8 +123,16 @@ onMounted(async () => {
     const sessionStatus = await orderStore.validateSession();
     if (!sessionStatus.active) {
       // Session ended (paid/expired) — show ThankYou and clear stale state
-      showThankYou.value = true;
+      const endedSessionId = sessionStatus.sessionId;
       cartStore.clearStorage(orderStore.activeTableId);
+      cartStore.clearCart();
+      orderStore.clearTableId();
+      orderStore.clearOrderId();
+      if (endedSessionId) {
+        router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: endedSessionId } });
+      } else {
+        router.replace({ path: '/customer', query: { thankyou: 'true' } });
+      }
       return;
     }
 
@@ -149,10 +157,11 @@ onMounted(async () => {
         cartStore.clearCart();
         if (orderStore.activeTableId) {
           cartStore.clearStorage(orderStore.activeTableId);
+          socketService.leaveTable(orderStore.activeTableId);
         }
         orderStore.clearTableId();
         orderStore.clearOrderId();
-        router.replace({ path: '/customer', query: { thankyou: 'true' } });
+        router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: payload.sessionId } });
       }
     });
 

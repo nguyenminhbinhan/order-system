@@ -133,8 +133,8 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * - Service room: tableUpdated (waiter refreshes table state)
    * - Global: dashboardUpdated (admin analytics refresh)
    */
-  emitPaymentCompleted(payload: { tableId: number; paymentId?: string }) {
-    this.logger.log(`Emitting paymentCompleted for table ${payload.tableId}`);
+  emitPaymentCompleted(payload: { tableId: number; paymentId?: string; sessionId?: string }) {
+    this.logger.log(`Emitting paymentCompleted for table ${payload.tableId} with session ${payload.sessionId}`);
     this.server.emit('paymentCompleted', payload);
     this.server.to('service').emit('tableUpdated', payload.tableId);
     this.server.emit('dashboardUpdated', {});

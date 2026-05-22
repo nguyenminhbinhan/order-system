@@ -21,6 +21,15 @@ const orderStore = useOrderStore();
 const activeTable = ref<any>(null);
 const activeSection = ref<'cart' | 'tracking'>('cart');
 
+const unreadMessagesCount = ref(0);
+const isChatOpen = ref(false);
+
+watch(isChatOpen, (newVal) => {
+  if (newVal) {
+    unreadMessagesCount.value = 0;
+  }
+});
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN').format(value || 0) + ' ₫';
 };
@@ -42,8 +51,16 @@ onMounted(async () => {
   if (orderStore.activeTableId) {
     const sessionStatus = await orderStore.validateSession();
     if (!sessionStatus.active) {
-      showThankYou.value = true;
+      const endedSessionId = sessionStatus.sessionId;
       cartStore.clearStorage(orderStore.activeTableId);
+      cartStore.clearCart();
+      orderStore.clearTableId();
+      orderStore.clearOrderId();
+      if (endedSessionId) {
+        router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: endedSessionId } });
+      } else {
+        router.replace({ path: '/customer', query: { thankyou: 'true' } });
+      }
       return;
     }
 
@@ -77,10 +94,19 @@ onMounted(async () => {
       cartStore.clearCart();
       if (orderStore.activeTableId) {
         cartStore.clearStorage(orderStore.activeTableId);
+        socketService.leaveTable(orderStore.activeTableId);
       }
       orderStore.clearTableId();
       orderStore.clearOrderId();
-      router.replace({ path: '/customer', query: { thankyou: 'true' } });
+      router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: payload.sessionId } });
+    }
+  });
+
+  socketService.onNewMessage('CartView', (msg: any) => {
+    if (msg.tableId === Number(tableId.value) && msg.sender === 'service') {
+      if (!isChatOpen.value) {
+        unreadMessagesCount.value++;
+      }
     }
   });
 
@@ -102,6 +128,7 @@ onUnmounted(() => {
   socketService.off('tableUpdated');
   socketService.off('paymentCompleted');
   socketService.offTableLocked();
+  socketService.offNewMessage('CartView');
 });
 
 // === Cart persistence: save to localStorage on every mutation ===
@@ -436,16 +463,30 @@ const handleSessionEnd = () => {
           </div>
 
           <!-- Action Buttons: ONLY appear when at least one item is confirmed by waiter -->
-          <div v-if="hasConfirmedItems" class="flex gap-3">
-            <button @click="handleCallWaiter" :disabled="isCallingWaiter" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
-               <span v-if="isCallingWaiter" class="material-symbols-outlined animate-spin text-sm">refresh</span>
-               <span v-else class="material-symbols-outlined text-sm">room_service</span> 
-               {{ isCallingWaiter ? 'Đang gọi...' : 'Gọi nhân viên' }}
-            </button>
-            <button v-if="hasPayableItems" @click="handleRequestPayment" :disabled="isRequestingPayment || hasRequestedPayment || isTableLocked" class="flex-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
-               <span v-if="isRequestingPayment" class="material-symbols-outlined animate-spin text-sm">refresh</span>
-               <span v-else class="material-symbols-outlined text-sm">payments</span> 
-               {{ hasRequestedPayment ? 'Đã gửi yêu cầu' : 'Thanh toán' }}
+          <div v-if="hasConfirmedItems" class="flex flex-col gap-3">
+            <div class="flex gap-3">
+              <button @click="handleCallWaiter" :disabled="isCallingWaiter" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
+                 <span v-if="isCallingWaiter" class="material-symbols-outlined animate-spin text-sm">refresh</span>
+                 <span v-else class="material-symbols-outlined text-sm">room_service</span> 
+                 {{ isCallingWaiter ? 'Đang gọi...' : 'Gọi nhân viên' }}
+              </button>
+              <button v-if="hasPayableItems" @click="handleRequestPayment" :disabled="isRequestingPayment || hasRequestedPayment || isTableLocked" class="flex-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
+                 <span v-if="isRequestingPayment" class="material-symbols-outlined animate-spin text-sm">refresh</span>
+                 <span v-else class="material-symbols-outlined text-sm">payments</span> 
+                 {{ hasRequestedPayment ? 'Đã gửi yêu cầu' : 'Thanh toán' }}
+              </button>
+            </div>
+            <!-- Chat Button for Tracking section -->
+            <button 
+              @click="isChatOpen = true" 
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors min-h-[48px] active:scale-[0.97] relative"
+            >
+              <span class="material-symbols-outlined text-sm">chat</span>
+              Chat với nhân viên
+              <!-- Unread Badge -->
+              <span v-if="unreadMessagesCount > 0" class="absolute top-1/2 -translate-y-1/2 right-4 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold border-2 border-white dark:border-slate-900 animate-bounce">
+                {{ unreadMessagesCount }}
+              </span>
             </button>
           </div>
 
@@ -539,8 +580,20 @@ const handleSessionEnd = () => {
         <!-- ========== CART SECTION ========== -->
         <div v-if="activeSection === 'cart' || !hasOrders">
           
-          <!-- Chat Box -->
-          <ChatBox v-if="tableId" :tableId="tableId" class="mx-4 my-4" />
+          <!-- Chat Button for Cart section -->
+          <div v-if="tableId && hasConfirmedItems" class="mx-4 my-4">
+            <button 
+              @click="isChatOpen = true" 
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors min-h-[48px] active:scale-[0.97] relative"
+            >
+              <span class="material-symbols-outlined text-sm">chat</span>
+              Chat với nhân viên
+              <!-- Unread Badge -->
+              <span v-if="unreadMessagesCount > 0" class="absolute top-1/2 -translate-y-1/2 right-4 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold border-2 border-white dark:border-slate-900 animate-bounce">
+                {{ unreadMessagesCount }}
+              </span>
+            </button>
+          </div>
 
           <!-- Cart Items -->
           <div v-if="cartStore.items.length > 0" class="bg-white dark:bg-background-dark">
@@ -598,5 +651,36 @@ const handleSessionEnd = () => {
       :orders="orderStore.activeTableOrders"
       @complete="handleSessionEnd" 
     />
+
+    <!-- Chat Modal Overlay -->
+    <div 
+      v-if="isChatOpen" 
+      class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity"
+      @click.self="isChatOpen = false"
+    >
+      <div 
+        class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl shadow-2xl flex flex-col overflow-hidden transform transition-transform duration-300"
+        style="height: 80vh;"
+      >
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-primary text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined">support_agent</span>
+            <span class="font-bold text-base">Chat với nhân viên</span>
+          </div>
+          <button 
+            @click="isChatOpen = false"
+            class="text-white hover:bg-white/15 p-1.5 rounded-full transition-colors flex items-center justify-center"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <!-- Chat Content -->
+        <div class="flex-1 overflow-hidden">
+          <ChatBox :tableId="Number(tableId)" :fullHeight="true" :hideHeader="true" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>

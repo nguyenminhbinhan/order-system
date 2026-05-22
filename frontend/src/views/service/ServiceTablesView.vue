@@ -40,10 +40,13 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN').format(value || 0) + ' ₫';
 };
 
-const hasConfirmedItemsForTable = (table: any) => {
-  if (!table?.tableOrders) return false;
+const canShowPayment = (table: any) => {
+  if (!table) return false;
+  if (table.computedState === 'available') return false;
+  if (!table.activeSessionId) return false;
+  if (!table.tableOrders || table.tableOrders.length === 0) return false;
   return table.tableOrders.some((o: any) => 
-    o.items?.some((i: any) => i.status !== 'pending' && i.status !== 'cancelled')
+    o.status !== 'cancelled' && o.items?.some((i: any) => i.status !== 'pending' && i.status !== 'cancelled')
   );
 };
 
@@ -1040,12 +1043,12 @@ const itemStatusColor = (status: string): string => {
             </button>
           </div>
           
-          <div class="sm:hidden mt-2 pt-2 border-t border-slate-200/20 dark:border-slate-700/50 flex gap-1.5">
+          <div v-if="table.computedState !== 'available'" class="sm:hidden mt-2 pt-2 border-t border-slate-200/20 dark:border-slate-700/50 flex gap-1.5">
             <button v-if="['occupied', 'serving'].includes(table.computedState)" @click.stop="router.push('/customer?tableId=' + table.id)" class="flex-1 py-2.5 bg-slate-800 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm min-h-[36px] active:scale-95">Gọi món</button>
-            <button v-if="userStore.user && userStore.user.role !== 'kitchen' && hasConfirmedItemsForTable(table)" @click.stop="handleViewPreview(table)" :disabled="isPreviewing || !table?.id || table.computedState === 'available'" class="flex-1 py-2.5 bg-white/20 hover:bg-white/30 text-slate-800 dark:text-white rounded-lg text-[11px] font-bold transition-all border border-slate-300 dark:border-slate-600 disabled:opacity-50 min-h-[36px] active:scale-95">
+            <button v-if="userStore.user && userStore.user.role !== 'kitchen' && canShowPayment(table)" @click.stop="handleViewPreview(table)" :disabled="isPreviewing || !table?.id" class="flex-1 py-2.5 bg-white/20 hover:bg-white/30 text-slate-800 dark:text-white rounded-lg text-[11px] font-bold transition-all border border-slate-300 dark:border-slate-600 disabled:opacity-50 min-h-[36px] active:scale-95">
               {{ isPreviewing && previewData?.tableId === table.id ? '...' : 'In bill' }}
             </button>
-            <button @click.stop="openTableModal(table.id)" class="flex-1 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">Thanh toán</button>
+            <button v-if="canShowPayment(table)" @click.stop="openTableModal(table.id)" class="flex-1 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">Thanh toán</button>
           </div>
 
           <div v-if="table.colorClass.includes('text-white')" class="absolute -right-4 -bottom-4 opacity-10 pointer-events-none hidden md:block">
@@ -1246,7 +1249,7 @@ const itemStatusColor = (status: string): string => {
               <span class="material-symbols-outlined text-sm">restaurant_menu</span>
               Thêm món (Order more)
             </button>
-            <div class="flex gap-2" v-if="userStore.user && userStore.user.role !== 'kitchen' && hasConfirmedItemsForTable(selectedTable)">
+            <div class="flex gap-2" v-if="userStore.user && userStore.user.role !== 'kitchen' && canShowPayment(selectedTable)">
               <button 
                 @click="handleViewPreview(selectedTable)"
                 :disabled="isPreviewing || !selectedTable?.id"

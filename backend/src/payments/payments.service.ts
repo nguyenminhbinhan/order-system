@@ -265,6 +265,11 @@ export class PaymentsService {
       throw new NotFoundException('PAYMENT_NOT_FOUND');
     }
 
+    const session = payment.order.session;
+    if (!session) {
+      throw new BadRequestException('NO_SESSION_FOUND');
+    }
+
     if (payment.status === 'paid') {
       // Already paid — return success without re-processing
       return {
@@ -273,16 +278,12 @@ export class PaymentsService {
         paidAt: payment.paidAt,
         amount: Number(payment.amount),
         tableId: payment.order.tableId,
+        sessionId: session.id,
       };
     }
 
     if (payment.status === 'failed') {
       throw new BadRequestException('PAYMENT_FAILED');
-    }
-
-    const session = payment.order.session;
-    if (!session) {
-      throw new BadRequestException('NO_SESSION_FOUND');
     }
 
     if (session.endedAt) {
@@ -292,20 +293,81 @@ export class PaymentsService {
     const tableId = payment.order.tableId;
     const amount = Number(payment.amount);
 
+    const paidAt = new Date();
+
     // Execute full checkout in a transaction
     await this.prisma.$transaction(async (tx) => {
+      // Fetch session with orders and ready items
+      const fullSession = await tx.tableSession.findUnique({
+        where: { id: session.id },
+        include: {
+          table: true,
+          orders: {
+            where: { status: { not: 'cancelled' } },
+            include: {
+              items: { include: { menuItem: true } }
+            }
+          }
+        }
+      });
+
+      if (!fullSession) {
+        throw new BadRequestException('NO_SESSION_FOUND');
+      }
+
+      // Build aggregated item list of only ready items, excluding cancelled items/orders
+      const itemMap = new Map<string, { name: string; price: number; quantity: number; note: string }>();
+
+      for (const order of fullSession.orders) {
+        for (const item of order.items) {
+          if (item.status === 'ready') {
+            const price = Number(item.price || 0);
+            const key = `${item.menuItemId}-${item.note || ''}`;
+
+            if (itemMap.has(key)) {
+              itemMap.get(key)!.quantity += item.quantity;
+            } else {
+              itemMap.set(key, {
+                name: item.name || item.menuItem?.name || 'Món ăn',
+                price,
+                quantity: item.quantity,
+                note: item.note || '',
+              });
+            }
+          }
+        }
+      }
+
+      const items = Array.from(itemMap.values());
+      const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+      const billSnapshot = {
+        tableId: fullSession.tableId,
+        tableNumber: fullSession.table?.name?.replace('Table', '').trim() || String(fullSession.tableId),
+        tableName: fullSession.table?.name || `Bàn ${fullSession.tableId}`,
+        sessionId: fullSession.id,
+        startedAt: fullSession.startedAt,
+        paidAt,
+        items,
+        subtotal,
+        total: subtotal,
+      };
+
       // 1. Mark payment as PAID
       await tx.payment.update({
         where: { id },
-        data: { status: 'paid', paidAt: new Date() }
+        data: { status: 'paid', paidAt }
       });
-
-
 
       // 3. Close session
       await tx.tableSession.update({
         where: { id: session.id },
-        data: { endedAt: new Date(), paidAt: new Date(), totalAmount: amount }
+        data: {
+          endedAt: paidAt,
+          paidAt,
+          totalAmount: subtotal,
+          billSnapshot: billSnapshot as any,
+        }
       });
 
       // 4. Reset table to EMPTY
@@ -325,13 +387,13 @@ export class PaymentsService {
           userId: null, // Customer payment — no authenticated user
           action: 'QR_PAYMENT_CONFIRMED',
           tableId,
-          metadata: { paymentId: id, amount }
+          metadata: { paymentId: id, amount: subtotal, sessionId: session.id }
         }
       });
-    });
+    }, { timeout: 20000 });
 
     // 7. Emit socket events via centralized gateway method
-    this.orderGateway.emitPaymentCompleted({ tableId, paymentId: id });
+    this.orderGateway.emitPaymentCompleted({ tableId, paymentId: id, sessionId: session.id });
 
     // 8. Customer activity notification (Fix #3)
     const table = await this.prisma.table.findUnique({ where: { id: tableId } });
@@ -346,9 +408,10 @@ export class PaymentsService {
     return {
       success: true,
       alreadyPaid: false,
-      paidAt: new Date(),
+      paidAt,
       amount,
       tableId,
+      sessionId: session.id,
     };
   }
 }
