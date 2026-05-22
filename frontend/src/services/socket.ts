@@ -74,11 +74,7 @@ class SocketService {
     }
   }
 
-  /**
-   * Reconnect socket with fresh token after token refresh.
-   * This is critical — without this, the socket stays authenticated
-   * with the old (expired) token and all socket operations silently fail.
-   */
+
   reconnectWithNewToken() {
     if (this.socket) {
       // Disconnect and reconnect — the auth callback will pick up the new token
@@ -89,11 +85,7 @@ class SocketService {
     }
   }
 
-  /**
-   * Fully destroy the socket connection. Use ONLY on logout.
-   * DO NOT call this from view onUnmounted() — that kills realtime for all views.
-   * Views should use specific off() methods to clean up their listeners.
-   */
+
   disconnect() {
     if (this.socket) {
       // Explicitly leave rooms on the backend before disconnecting
@@ -113,11 +105,6 @@ class SocketService {
       this.token = null;
     }
   }
-
-  // ==========================================
-  // ROOM MANAGEMENT — Role-based room joining
-  // ==========================================
-
   joinCustomer(orderId: string) {
     this.currentRole = 'customer';
     this.currentOrderId = orderId;
@@ -157,11 +144,6 @@ class SocketService {
       this.socket.emit('leaveService');
     }
   }
-
-  // ==========================================
-  // ROOM MANAGEMENT — Table-level (customer activity)
-  // ==========================================
-
   private currentTableId: number | null = null;
 
   joinTable(tableId: number) {
@@ -179,14 +161,6 @@ class SocketService {
       this.currentTableId = null;
     }
   }
-
-  // ==========================================
-  // EVENT LISTENERS — Deduplicated (off-before-on)
-  // 
-  // PATTERN: Every registration first removes existing listener
-  // for that event, preventing stacked handlers from component
-  // remounts, hot-reloads, or navigation cycles.
-  // ==========================================
 
   onNewOrderCreated(callback: (order: any) => void) {
     if (this.socket) {
@@ -242,14 +216,7 @@ class SocketService {
     }
   }
 
-  // ==========================================
-  // GENERIC LISTENERS — Deduplicated
-  // ==========================================
-
-  /**
-   * Register a listener for a custom event. 
-   * ALWAYS removes existing listeners for the same event first.
-   */
+ 
   on(event: string, callback: (...args: any[]) => void) {
     if (this.socket) {
       this.socket.off(event);  // Dedup: remove any existing listener first
@@ -257,24 +224,14 @@ class SocketService {
     }
   }
 
-  /**
-   * Remove all listeners for a specific event.
-   */
+
   off(event: string) {
     if (this.socket) {
       this.socket.off(event);
     }
   }
 
-  // ==========================================
-  // CLIENT-TO-SERVER EMISSIONS
-  // ==========================================
-
-  /**
-   * Emit cart activity to server for service notification.
-   * Throttled on server side (3s per table), but also
-   * throttled here (2s) to reduce unnecessary network traffic.
-   */
+  
   private lastCartEmit = 0;
 
   emitCartUpdate(payload: { tableId: number; tableName: string; itemCount: number; description: string }) {
@@ -287,10 +244,7 @@ class SocketService {
     }
   }
 
-  // ==========================================
-  // CLEANUP METHODS — For view onUnmounted()
-  // ==========================================
-
+ 
   offNewOrderCreated() {
     if (this.socket) this.socket.off('newOrderCreated');
   }
@@ -319,10 +273,7 @@ class SocketService {
     if (this.socket) this.socket.off('itemStatusChanged');
   }
 
-  /**
-   * Remove all application-level listeners without destroying the socket.
-   * Use this for comprehensive view cleanup.
-   */
+
   removeAllAppListeners() {
     if (this.socket) {
       this.socket.off('newOrderCreated');
