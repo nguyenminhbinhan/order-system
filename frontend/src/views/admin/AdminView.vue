@@ -5,7 +5,7 @@ import { useMenuStore } from '@/stores/menu.store';
 import { useUserStore } from '@/stores/user.store';
 import { apiClient } from '@/services/api';
 import { toast } from 'vue3-toastify';
-import { API_BASE_URL } from '@/utils/constants';
+import { resolveImageUrlLarge } from '@/utils/imageUrl';
 
 const menuStore = useMenuStore();
 const userStore = useUserStore();
@@ -146,11 +146,7 @@ const submitForm = async () => {
 };
 
 const getImageUrl = (filename: any) => {
-  if (!filename) return 'https://placehold.co/400x300?text=No+Image';
-  const BASE_URL = API_BASE_URL;
-  if (filename.startsWith('http')) return filename;
-  const cleanName = filename.replace('/uploads/images/', '').replace('/uploads/', '');
-  return `${BASE_URL}/uploads/${cleanName}`;
+  return resolveImageUrlLarge({ imageFilename: filename });
 };
 
 const handleImageError = (event: Event) => {

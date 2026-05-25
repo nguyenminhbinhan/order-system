@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useCartStore } from '@/stores/cart.store';
-import { API_BASE_URL } from '@/utils/constants';
+import { resolveImageUrlSmall } from '@/utils/imageUrl';
 
 const props = defineProps<{
   item: any;
@@ -13,21 +13,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN').format(value || 0) + ' ₫';
 };
 
-const imageUrl = computed(() => {
-  const BASE_URL = API_BASE_URL;
-  let imgFilename = props.item.imageFilename;
-  
-  if (!imgFilename && props.item.images && props.item.images.length > 0) {
-    imgFilename = props.item.images[0].image;
-  }
-  
-  if (imgFilename) {
-    if (imgFilename.startsWith('http')) return imgFilename;
-    const cleanName = imgFilename.replace('/uploads/images/', '').replace('/uploads/', '');
-    return `${BASE_URL}/uploads/${cleanName}`;
-  }
-  return 'https://placehold.co/150x150?text=No+Image';
-});
+const imageUrl = computed(() => resolveImageUrlSmall(props.item));
 
 const increaseQuantity = () => {
   cartStore.addItem(props.item, 1, props.item.note || '');

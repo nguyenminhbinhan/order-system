@@ -75,13 +75,6 @@ async function main() {
           available: true,
           user: { connect: { id: user.id } },
           category: { connect: { id: category.id } },
-          images: {
-            create: [
-              { image: `anh(${i + 1}).jpg` },
-              { image: `anh(${i + 2}).jpg` },
-              { image: `anh(${i + 3}).jpg` },
-            ],
-          },
           options: {
             create: Array.from({ length: Math.floor(Math.random() * 3) + 1 }).map((_, idx) => ({
               name: `Option ${idx + 1}`,

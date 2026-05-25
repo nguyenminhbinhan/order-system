@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useCartStore } from '@/stores/cart.store';
-import { API_BASE_URL } from '@/utils/constants';
+import { resolveImageUrl } from '@/utils/imageUrl';
 
 const props = defineProps<{
   item: any;
@@ -14,26 +14,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN').format(value || 0) + ' ₫';
 };
 
-const imageUrl = computed(() => {
-  const BASE_URL = API_BASE_URL;
-  let imgFilename = props.item.imageFilename;
-  
-  if (!imgFilename && props.item.images && props.item.images.length > 0) {
-    imgFilename = props.item.images[0].image;
-  }
-  
-  if (imgFilename) {
-    if (imgFilename.startsWith('http')) {
-        return imgFilename;
-    }
-    
-    // Always strip old prefix artifacts safely before assembling the final URL
-    const cleanName = imgFilename.replace('/uploads/images/', '').replace('/uploads/', '');
-    return `${BASE_URL}/uploads/${cleanName}`;
-  }
-  
-  return 'https://placehold.co/300x300?text=No+Image';
-});
+const imageUrl = computed(() => resolveImageUrl(props.item));
 
 const cartQty = computed(() => {
   const found = cartStore.items.find(i => i.id === props.item.id && !i.note);

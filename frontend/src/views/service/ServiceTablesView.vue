@@ -11,7 +11,7 @@ import html2pdf from 'html2pdf.js';
 import { useUserStore } from '@/stores/user.store';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { useRouter } from 'vue-router';
-import { API_BASE_URL } from '@/utils/constants';
+import { resolveImageUrlSmall } from '@/utils/imageUrl';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -530,17 +530,7 @@ const staffCartItemQty = (menuItemId: string, delta: number) => {
 };
 
 const getStaffImageUrl = (menuItem: any) => {
-  const BASE_URL = API_BASE_URL;
-  let imgFilename = menuItem.imageFilename;
-  if (!imgFilename && menuItem.images && menuItem.images.length > 0) {
-    imgFilename = menuItem.images[0].image;
-  }
-  if (imgFilename) {
-    if (imgFilename.startsWith('http')) return imgFilename;
-    const cleanName = imgFilename.replace('/uploads/images/', '').replace('/uploads/', '');
-    return `${BASE_URL}/uploads/${cleanName}`;
-  }
-  return 'https://placehold.co/150x150?text=No+Image';
+  return resolveImageUrlSmall(menuItem);
 };
 
 const submitStaffOrder = async () => {
