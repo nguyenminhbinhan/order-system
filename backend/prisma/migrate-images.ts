@@ -8,10 +8,8 @@
  *   4. Never touches Cloudinary URLs
  *   5. Is fully idempotent — safe to run multiple times
  *
- * Usage:
+ * Usage (MANUAL ONLY — do NOT add to start:prod):
  *   npx ts-node prisma/migrate-images.ts
- *
- * Or add to start:prod script for auto-cleanup on deploy.
  */
 
 import { PrismaClient } from '@prisma/client';
