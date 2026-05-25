@@ -18,11 +18,11 @@ export const useOrderStore = defineStore('order', () => {
     localStorage.getItem('sessionToken') || null
   );
 
-  async function setTableId(id: number) {
+  async function setTableId(id: number, qrToken?: string) {
     activeTableId.value = id;
     localStorage.setItem('tableId', id.toString());
     try {
-      const res = await apiClient.post(`/tables/${id}/session`);
+      const res = await apiClient.post(`/tables/${id}/session`, { qrToken });
       
       // Handle table locked: backend returns isLocked: true
       if (res.data.isLocked) {
@@ -66,7 +66,7 @@ export const useOrderStore = defineStore('order', () => {
     try {
       const res = await apiClient.get(`/tables/by-token/${token}`);
       const tableId = res.data.id;
-      return await setTableId(tableId);
+      return await setTableId(tableId, token);
     } catch (e) {
       console.error('Failed to resolve table token', e);
       return { sessionEnded: false, error: true };

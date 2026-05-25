@@ -24,6 +24,17 @@ const fetchOrder = async () => {
   try {
     const data = await orderStore.fetchOrderById(orderId);
     orderData.value = data;
+    if (data.session?.endedAt) {
+      cartStore.clearCart();
+      if (orderStore.activeTableId) {
+        cartStore.clearStorage(orderStore.activeTableId);
+      }
+      orderStore.clearTableId();
+      orderStore.clearOrderId();
+      socketService.leaveCustomer(orderId);
+      router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: data.sessionId } });
+      return;
+    }
     if (data.status === 'completed' || data.status === 'cancelled') {
         orderStore.clearOrderId();
         orderStore.clearTableId();
@@ -64,16 +75,17 @@ onMounted(() => {
       }
       orderStore.clearTableId();
       orderStore.clearOrderId();
-      router.replace({ path: '/customer', query: { thankyou: 'true' } });
+      socketService.leaveCustomer(orderId);
+      router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: payload.sessionId } });
     }
   });
 });
 
 onUnmounted(() => {
+  socketService.leaveCustomer(orderId);
   socketService.offOrderUpdated();
   socketService.offItemStatusChanged();
   socketService.off('paymentCompleted');
-  socketService.disconnect();
 });
 
 const handleSessionEnd = () => {

@@ -88,8 +88,12 @@ export class TablesController {
   }
 
   @Post(':id/session')
-  getOrCreateSessionToken(@Param('id', ParseIntPipe) id: number) {
-    return this.tablesService.getOrCreateSessionToken(id);
+  getOrCreateSessionToken(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('qrToken') qrToken?: string,
+    @Body('isStaff') isStaff?: boolean,
+  ) {
+    return this.tablesService.getOrCreateSessionToken(id, qrToken, isStaff);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

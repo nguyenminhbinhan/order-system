@@ -50,6 +50,7 @@ const fetchPaymentInfo = async () => {
       localStorage.removeItem('sessionToken');
       localStorage.removeItem('cart');
       if (data.tableId) {
+        localStorage.removeItem(`binh_an_cart_${data.tableId}`);
         socketService.leaveTable(Number(data.tableId));
       }
       router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: data.sessionId } });
@@ -101,6 +102,7 @@ const handleConfirmPayment = async () => {
     localStorage.removeItem('sessionToken');
     localStorage.removeItem('cart');
     if (paymentData.value?.tableId) {
+      localStorage.removeItem(`binh_an_cart_${paymentData.value.tableId}`);
       socketService.leaveTable(Number(paymentData.value.tableId));
     }
 
@@ -167,6 +169,7 @@ onMounted(() => {
       localStorage.removeItem('orderId');
       localStorage.removeItem('sessionToken');
       localStorage.removeItem('cart');
+      localStorage.removeItem(`binh_an_cart_${payload.tableId}`);
       socketService.leaveTable(Number(payload.tableId));
       router.replace({ path: '/customer', query: { thankyou: 'true', sessionId: payload.sessionId } });
     }

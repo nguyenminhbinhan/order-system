@@ -965,6 +965,61 @@ const handleConfirmAllPendingItems = async () => {
   }
 };
 
+const hasConfirmOrPreparingItemsInSelectedTable = computed(() => {
+  if (!selectedTable.value || !selectedTable.value.tableOrders) return false;
+  return selectedTable.value.tableOrders.some((order: any) =>
+    order.items?.some((item: any) => ['confirmed', 'preparing'].includes(item.status))
+  );
+});
+
+const isCookingAllItems = ref(false);
+
+const handleCookAllItems = async () => {
+  if (!selectedTable.value || isCookingAllItems.value) return;
+  
+  const ordersWithConfirmOrPreparing = selectedTable.value.tableOrders.filter((order: any) =>
+    order.items?.some((item: any) => ['confirmed', 'preparing'].includes(item.status))
+  );
+  
+  if (ordersWithConfirmOrPreparing.length === 0) {
+    toast.info('Không có món nào đang nấu cần hoàn thành.');
+    return;
+  }
+  
+  isCookingAllItems.value = true;
+  try {
+    let totalCooked = 0;
+    for (const order of ordersWithConfirmOrPreparing) {
+      const itemsToCook = order.items.filter((item: any) => ['confirmed', 'preparing'].includes(item.status));
+      for (const item of itemsToCook) {
+        await orderService.updateItemStatus(order.id, item.id, 'ready');
+        totalCooked += item.quantity;
+      }
+    }
+    
+    toast.success(`Đã hoàn thành tất cả (${totalCooked} món) thành công!`);
+    await fetchData();
+    
+    // Rebind the modal payload organically
+    if (selectedTable.value) {
+      const updated = tables.value.find(t => t.id === selectedTable.value.id);
+      if (updated) {
+        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
+        selectedTable.value = {
+          ...selectedTable.value,
+          ...updated,
+          tableOrders,
+          computedState: updated.computedState
+        };
+      }
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || 'Lỗi khi hoàn thành món');
+  } finally {
+    isCookingAllItems.value = false;
+  }
+};
+
 const itemStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
     pending: 'Chờ xác nhận',
@@ -1190,6 +1245,19 @@ const itemStatusColor = (status: string): string => {
                 <span v-if="isConfirmingOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
                 <span v-else class="material-symbols-outlined text-[18px]">done_all</span>
                 Xác nhận tất cả món đang chờ
+              </button>
+            </div>
+
+            <!-- Bulk Cook Button -->
+            <div v-if="hasConfirmOrPreparingItemsInSelectedTable" class="mb-4">
+              <button 
+                @click="handleCookAllItems"
+                :disabled="isCookingAllItems"
+                class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 min-h-[44px]"
+              >
+                <span v-if="isCookingAllItems" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
+                <span v-else class="material-symbols-outlined text-[18px]">restaurant</span>
+                Đã nấu tất cả
               </button>
             </div>
 

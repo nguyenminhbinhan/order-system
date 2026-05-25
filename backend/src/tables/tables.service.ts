@@ -263,7 +263,7 @@ export class TablesService {
     return session;
   }
 
-  async getOrCreateSessionToken(tableId: number) {
+  async getOrCreateSessionToken(tableId: number, qrToken?: string, isStaff?: boolean) {
     // TABLE LOCK GUARD
     const table = await this.prisma.table.findUnique({ where: { id: tableId } });
     if (table && table.isLocked) {
@@ -278,6 +278,11 @@ export class TablesService {
     
     if (session) {
       return { token: session.id, tableId: session.tableId, isLocked: false };
+    }
+
+    // Guard: Only create a new session if staff initiated or scanned via valid token-based QR
+    if (!isStaff && (!qrToken || qrToken !== table?.qrToken)) {
+      return { token: null, tableId, sessionEnded: true, message: 'Must scan QR code to start a session.' };
     }
 
     // COOLDOWN GUARD

@@ -75,7 +75,7 @@ export class OrdersService {
   // ORDER CREATION
   // ==========================================
 
-  async create(dto: CreateOrderDto, user?: any) {
+  async create(dto: CreateOrderDto, user?: any, sessionToken?: string) {
     if (!dto.tableId) {
       throw new BadRequestException('tableId is required');
     }
@@ -142,10 +142,18 @@ export class OrdersService {
         orderBy: { startedAt: 'desc' }
       });
 
-      if (!session) {
-        session = await tx.tableSession.create({
-          data: { tableId: dto.tableId }
-        });
+      // Customer orders MUST have a valid and active session token matching the table session
+      if (!dto.isStaff) {
+        if (!session || !sessionToken || session.id !== sessionToken) {
+          throw new ForbiddenException('Phiên của bạn đã hết hạn hoặc không hợp lệ. Vui lòng quét lại mã QR.');
+        }
+      } else {
+        // Staff placing manual orders can auto-create the session if none exists
+        if (!session) {
+          session = await tx.tableSession.create({
+            data: { tableId: dto.tableId }
+          });
+        }
       }
 
       const newOrder = await tx.order.create({

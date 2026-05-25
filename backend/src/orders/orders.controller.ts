@@ -51,7 +51,8 @@ export class OrdersController {
 
   @Post()
   create(@Body() dto: CreateOrderDto, @Req() req: any) {
-    return this.ordersService.create(dto, req.user);
+    const sessionToken = req.headers['x-session-token'] as string | undefined;
+    return this.ordersService.create(dto, req.user, sessionToken);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -97,6 +97,12 @@ apiClient.interceptors.request.use(
       }
     }
 
+    // Attach customer table session token if present
+    const sessionToken = localStorage.getItem('sessionToken');
+    if (sessionToken) {
+      config.headers['X-Session-Token'] = sessionToken;
+    }
+
     return config;
   },
   (error) => {
