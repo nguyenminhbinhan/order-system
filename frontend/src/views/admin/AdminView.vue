@@ -155,6 +155,7 @@ const getImageUrl = (filename: any) => {
 
 const handleImageError = (event: Event) => {
   const target = event.target as HTMLImageElement;
+  target.onerror = null;
   target.src = 'https://placehold.co/400x300?text=No+Image';
 };
 

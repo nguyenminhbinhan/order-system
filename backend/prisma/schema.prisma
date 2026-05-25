@@ -152,6 +152,7 @@ model Order {
   status      OrderStatus   @default(pending)
   totalAmount Decimal
   createdAt   DateTime      @default(now())
+  isStaff     Boolean       @default(false)
   table       Table         @relation(fields: [tableId], references: [id])
   session     TableSession? @relation(fields: [sessionId], references: [id])
   items       OrderItem[]

@@ -69,7 +69,9 @@ const decrement = () => {
 
 const handleImageError = (e: Event) => {
   imageLoaded.value = true;
-  (e.target as HTMLImageElement).src = 'https://placehold.co/300x300?text=No+Image';
+  const target = e.target as HTMLImageElement;
+  target.onerror = null;
+  target.src = 'https://placehold.co/300x300?text=No+Image';
 };
 </script>
 

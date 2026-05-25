@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Inject } from '@nes
 import { PrismaService } from '../prisma/prisma/prisma.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
-import { promises as fs } from 'fs';
-import * as path from 'path';
+import { StorageService } from './storage.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 
@@ -11,7 +10,8 @@ import type { Cache } from 'cache-manager';
 export class MenuItemsService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(dto: CreateMenuItemDto) {
@@ -58,13 +58,8 @@ export class MenuItemsService {
     const existing = await this.findOne(id);
     
     if (dto.imageFilename && existing.imageFilename) {
-      // Clean old file from disk
-      const oldFilePath = path.join(process.cwd(), 'uploads', existing.imageFilename);
-      try {
-        await fs.unlink(oldFilePath);
-      } catch (err: any) {
-        // Old file may have been deleted manually — not critical
-      }
+      // Clean old file using the storage service
+      await this.storageService.deleteFile(existing.imageFilename);
     }
 
     const data: any = {
@@ -106,14 +101,9 @@ export class MenuItemsService {
   async remove(id: string) {
     const existing = await this.findOne(id);
     
-    // Delete image file from disk
+    // Delete image file using the storage service
     if (existing && existing.imageFilename) {
-      const filePath = path.join(process.cwd(), 'uploads', existing.imageFilename);
-      try {
-        await fs.unlink(filePath);
-      } catch (err: any) {
-        // File may have been deleted manually — not critical
-      }
+      await this.storageService.deleteFile(existing.imageFilename);
     }
 
     const item = await this.prisma.menuItem.update({

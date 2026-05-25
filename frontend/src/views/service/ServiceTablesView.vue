@@ -552,6 +552,7 @@ const submitStaffOrder = async () => {
     await apiClient.post('/orders', {
       tableId: staffOrderTableId.value,
       totalAmount,
+      isStaff: true,
       items: staffCart.value.map(i => ({
         menuItemId: i.menuItemId,
         quantity: i.quantity,
@@ -908,7 +909,61 @@ const handleUpdateItemStatus = async (orderId: string, itemId: string, newStatus
   }
 };
 
-// Batch and select-all functions removed in favor of direct individual confirmation.
+const hasPendingItemsInSelectedTable = computed(() => {
+  if (!selectedTable.value || !selectedTable.value.tableOrders) return false;
+  return selectedTable.value.tableOrders.some((order: any) =>
+    order.items?.some((item: any) => item.status === 'pending')
+  );
+});
+
+const handleConfirmAllPendingItems = async () => {
+  if (!selectedTable.value || isConfirmingOrder.value) return;
+  
+  const ordersWithPending = selectedTable.value.tableOrders.filter((order: any) =>
+    order.items?.some((item: any) => item.status === 'pending')
+  );
+  
+  if (ordersWithPending.length === 0) {
+    toast.info('Không có món nào đang chờ xác nhận.');
+    return;
+  }
+  
+  isConfirmingOrder.value = true;
+  try {
+    let totalConfirmed = 0;
+    for (const order of ordersWithPending) {
+      const pendingItemIds = order.items
+        .filter((item: any) => item.status === 'pending')
+        .map((item: any) => item.id);
+      
+      if (pendingItemIds.length > 0) {
+        await orderService.confirmItems(order.id, pendingItemIds);
+        totalConfirmed += pendingItemIds.length;
+      }
+    }
+    
+    toast.success(`Đã xác nhận tất cả (${totalConfirmed} món) thành công!`);
+    await fetchData();
+    
+    // Rebind the modal payload organically
+    if (selectedTable.value) {
+      const updated = tables.value.find(t => t.id === selectedTable.value.id);
+      if (updated) {
+        const tableOrders = activeOrders.value.filter(o => o.tableId === updated.id && o.sessionId === updated.activeSessionId);
+        selectedTable.value = {
+          ...selectedTable.value,
+          ...updated,
+          tableOrders,
+          computedState: updated.computedState
+        };
+      }
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || 'Lỗi khi xác nhận tất cả món');
+  } finally {
+    isConfirmingOrder.value = false;
+  }
+};
 
 const itemStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
@@ -1125,9 +1180,26 @@ const itemStatusColor = (status: string): string => {
             <p class="font-bold text-lg">Không có dữ liệu</p>
           </div>
           <div v-else class="space-y-4">
+            <!-- Bulk Confirm Button -->
+            <div v-if="hasPendingItemsInSelectedTable" class="mb-4">
+              <button 
+                @click="handleConfirmAllPendingItems"
+                :disabled="isConfirmingOrder"
+                class="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 min-h-[44px]"
+              >
+                <span v-if="isConfirmingOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
+                <span v-else class="material-symbols-outlined text-[18px]">done_all</span>
+                Xác nhận tất cả món đang chờ
+              </button>
+            </div>
+
             <div v-for="order in selectedTable.tableOrders" :key="order.id" class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
               <div class="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-700/50 pb-2">
-                <h4 class="font-bold text-slate-700 dark:text-slate-300">Order #{{ order.id.substring(0,6) }}</h4>
+                <h4 class="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
+                  <span class="material-symbols-outlined text-sm text-slate-400">{{ order.isStaff ? 'support_agent' : 'person' }}</span>
+                  {{ order.isStaff ? 'Nhân viên thực hiện' : 'Khách thực hiện' }}
+                  <span class="text-[10px] text-slate-400 font-normal tracking-wider">(#{{ order.id.substring(0,6) }})</span>
+                </h4>
                 <span :class="['text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider', orderStatusColor(order.status)]">{{ orderStatusLabel(order.status) }}</span>
               </div>
               
@@ -1388,7 +1460,7 @@ const itemStatusColor = (status: string): string => {
                   class="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group relative"
                 >
                   <div class="aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    <img :src="getStaffImageUrl(menuItem)" :alt="menuItem.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform" @error="(e: any) => e.target.src = 'https://placehold.co/150x150?text=No+Image'" />
+                    <img :src="getStaffImageUrl(menuItem)" :alt="menuItem.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform" @error="(e: any) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150?text=No+Image'; }" />
                   </div>
                   <div class="p-2.5">
                     <p class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{{ menuItem.name }}</p>

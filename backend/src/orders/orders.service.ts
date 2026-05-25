@@ -154,6 +154,7 @@ export class OrdersService {
           session: { connect: { id: session.id } },
           totalAmount: serverTotal,
           status: 'pending_confirmation',
+          isStaff: dto.isStaff ?? false,
           items: {
             create: orderItemsData
           }

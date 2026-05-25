@@ -50,7 +50,9 @@ const removeItem = () => {
 };
 
 const handleImageError = (e: Event) => {
-  (e.target as HTMLImageElement).src = 'https://placehold.co/150x150?text=No+Image';
+  const target = e.target as HTMLImageElement;
+  target.onerror = null;
+  target.src = 'https://placehold.co/150x150?text=No+Image';
 };
 </script>
 
