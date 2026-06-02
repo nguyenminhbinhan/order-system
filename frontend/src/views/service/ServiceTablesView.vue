@@ -281,8 +281,7 @@ const displayTables = computed(() => {
       colorClass,
       badgeClass,
       statusText,
-      icon,
-      guestCount: 2 // Mock generic data
+      icon
     };
   });
 });
@@ -1124,7 +1123,7 @@ const itemStatusColor = (status: string): string => {
           </div>
           
           <div class="z-10">
-            <div class="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1" :class="{ 'text-slate-500 dark:text-slate-400': !table.colorClass.includes('text-white') }">
+            <div v-if="table.guestCount" class="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1" :class="{ 'text-slate-500 dark:text-slate-400': !table.colorClass.includes('text-white') }">
               <span class="material-symbols-outlined text-xs sm:text-sm">groups</span>
               <span class="text-xs sm:text-sm font-bold">{{ table.guestCount }} khách</span>
             </div>

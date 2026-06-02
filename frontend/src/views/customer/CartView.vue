@@ -473,7 +473,7 @@ const handleSessionEnd = () => {
                  <span v-else class="material-symbols-outlined text-sm">room_service</span> 
                  {{ isCallingWaiter ? 'Đang gọi...' : 'Gọi nhân viên' }}
               </button>
-              <button v-if="hasPayableItems" @click="handleRequestPayment" :disabled="isRequestingPayment || hasRequestedPayment || isTableLocked" class="flex-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
+              <button v-if="hasConfirmedItems" @click="handleRequestPayment" :disabled="isRequestingPayment || hasRequestedPayment || isTableLocked" class="flex-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 min-h-[48px] active:scale-[0.97]">
                  <span v-if="isRequestingPayment" class="material-symbols-outlined animate-spin text-sm">refresh</span>
                  <span v-else class="material-symbols-outlined text-sm">payments</span> 
                  {{ hasRequestedPayment ? 'Đã gửi yêu cầu' : 'Thanh toán' }}
