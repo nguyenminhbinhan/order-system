@@ -133,6 +133,7 @@ export class TablesService {
 
       let computedState = 'occupied';
       if (!activeSession) computedState = 'available';
+      else if (t.status === 'needs_payment') computedState = 'paying';
       else if (hasPending) computedState = 'waiting_confirm';
       else if (allReady) computedState = 'serving';
       else if (hasActivePrep) computedState = 'occupied';
@@ -172,6 +173,7 @@ export class TablesService {
 
     let computedState = 'occupied';
     if (!activeSession) computedState = 'available';
+    else if (t.status === 'needs_payment') computedState = 'paying';
     else if (hasPending) computedState = 'waiting_confirm';
     else if (allReady) computedState = 'serving';
     else if (hasActivePrep) computedState = 'occupied';
@@ -436,9 +438,6 @@ export class TablesService {
     const rawTable = await this.prisma.table.findUnique({ where: { id } });
     if (!rawTable) throw new NotFoundException('Table not found');
     
-    if (rawTable.status === 'needs_payment') {
-      throw new BadRequestException('Payment is already requested and being processed.');
-    }
     this.checkCooldown(id, 'request_payment', 10000);
     
     const updatedTable = await this.prisma.table.update({

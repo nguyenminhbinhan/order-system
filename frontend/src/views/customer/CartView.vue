@@ -160,12 +160,15 @@ const isRequestingPayment = ref(false);
 const hasRequestedPayment = ref(false);
 
 const handleRequestPayment = async () => {
-  if (!orderStore.activeTableId) return;
+  if (!orderStore.activeTableId || hasRequestedPayment.value) return;
   isRequestingPayment.value = true;
   try {
     await apiClient.post(`/tables/${orderStore.activeTableId}/request-payment`);
-    toast.success('Yêu cầu thanh toán đã được gửi đến nhân viên!');
+    toast.success('Yêu cầu thanh toán đã được gửi tới nhân viên.');
     hasRequestedPayment.value = true;
+    setTimeout(() => {
+      hasRequestedPayment.value = false;
+    }, 3000); // 3-second debounce cooldown
   } catch(e) {
     toast.error('Lỗi khi gửi yêu cầu thanh toán. Vui lòng thử lại.');
   } finally {

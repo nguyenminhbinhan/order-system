@@ -273,12 +273,7 @@ export class OrdersService {
           });
         }
 
-        if (dto.status === 'ready') {
-          await tx.table.update({
-            where: { id: uOrder.tableId },
-            data: { status: 'needs_payment' }
-          });
-        }
+
 
         if (dto.status === 'cancelled') {
           // No message cleanup on completed order needed here as complete is removed
@@ -507,13 +502,7 @@ export class OrdersService {
         include: this.fullInclude()
       });
 
-      // Update table status based on overall order state
-      if (newOrderStatus === 'ready') {
-        await tx.table.update({
-          where: { id: order.tableId },
-          data: { status: 'needs_payment' }
-        });
-      }
+
 
       return result;
     }, { timeout: 20000 });
