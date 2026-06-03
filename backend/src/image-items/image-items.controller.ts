@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ImageItemsService } from './image-items.service';
 import { CreateImageItemDto } from './dto/create-image-item.dto';
 import { UpdateImageItemDto } from './dto/update-image-item.dto';
@@ -32,4 +40,3 @@ export class ImageItemsController {
     return this.imageItemsService.remove(Number(id));
   }
 }
-

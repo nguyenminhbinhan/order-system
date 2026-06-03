@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { OrderGateway } from '../socket/order.gateway';
@@ -11,11 +15,13 @@ export class MessagesService {
   ) {}
 
   async create(dto: CreateMessageDto) {
-    const table = await this.prisma.table.findUnique({ where: { id: dto.tableId } });
+    const table = await this.prisma.table.findUnique({
+      where: { id: dto.tableId },
+    });
     if (!table) throw new NotFoundException('Table not found');
 
     const activeSession = await this.prisma.tableSession.findFirst({
-      where: { tableId: dto.tableId, endedAt: null }
+      where: { tableId: dto.tableId, endedAt: null },
     });
     if (!activeSession) {
       throw new BadRequestException('Bàn hiện không có phiên hoạt động');
@@ -40,7 +46,7 @@ export class MessagesService {
         tableId: dto.tableId,
         type: 'NEW_MESSAGE',
         message: 'Khách gửi tin nhắn mới',
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
       });
     }
 
@@ -49,7 +55,7 @@ export class MessagesService {
 
   async findByTable(tableId: number) {
     const activeSession = await this.prisma.tableSession.findFirst({
-      where: { tableId, endedAt: null }
+      where: { tableId, endedAt: null },
     });
     if (!activeSession) {
       return [];

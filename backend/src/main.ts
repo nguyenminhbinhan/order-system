@@ -29,28 +29,32 @@ async function bootstrap() {
   app.useStaticAssets(uploadsDir, {
     prefix: '/uploads',
   });
-  
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true
-      }
-    })
+        enableImplicitConversion: true,
+      },
+    }),
   );
-  
+
   const port = process.env.PORT || 3000;
   try {
     await app.listen(port);
-    console.log(`\n[SYSTEM] Production Backend successfully mounted on port ${port} \n[REST] Health Node: http://localhost:${port}/health\n`);
+    console.log(
+      `\n[SYSTEM] Production Backend successfully mounted on port ${port} \n[REST] Health Node: http://localhost:${port}/health\n`,
+    );
   } catch (error: any) {
     if (error.code === 'EADDRINUSE') {
       console.error(`\n[CRITICAL ERROR] Port ${port} is already occupied!`);
-      console.error(`=> SOLUTION: Either kill the existing process on port ${port} or define a new PORT in your .env file.\n`);
+      console.error(
+        `=> SOLUTION: Either kill the existing process on port ${port} or define a new PORT in your .env file.\n`,
+      );
       process.exit(1);
     }
     throw error;
   }
 }
-bootstrap();
+void bootstrap();

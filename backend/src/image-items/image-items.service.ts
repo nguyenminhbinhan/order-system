@@ -8,7 +8,9 @@ export class ImageItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(dto: CreateImageItemDto) {
-    return this.prisma.imageItem.create({ data: { menu: { connect: { id: dto.menuId } }, image: dto.image } });
+    return this.prisma.imageItem.create({
+      data: { menu: { connect: { id: dto.menuId } }, image: dto.image },
+    });
   }
 
   findAll() {
@@ -31,4 +33,3 @@ export class ImageItemsService {
     return this.prisma.imageItem.delete({ where: { id } });
   }
 }
-

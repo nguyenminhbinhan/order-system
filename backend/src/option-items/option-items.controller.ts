@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { OptionItemsService } from './option-items.service';
 import { CreateOptionItemDto } from './dto/create-option-item.dto';
 import { UpdateOptionItemDto } from './dto/update-option-item.dto';
@@ -32,4 +40,3 @@ export class OptionItemsController {
     return this.optionItemsService.remove(Number(id));
   }
 }
-

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, UseGuards, Req, UnauthorizedException, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  Req,
+  UnauthorizedException,
+  Query,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -40,7 +48,11 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard)
   @Get('revenue-analytics')
-  getRevenueAnalytics(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
+  getRevenueAnalytics(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
     const role = req.user?.role;
     if (role !== 'admin' && role !== 'manager') {
       throw new UnauthorizedException('Only admins can view revenue analytics');
@@ -60,7 +72,11 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard)
   @Get('revenue-chart')
-  getRevenueChart(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
+  getRevenueChart(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
     const role = req.user?.role;
     if (role !== 'admin' && role !== 'manager') {
       throw new UnauthorizedException('Only admins can view revenue chart');
@@ -81,18 +97,18 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @Get('audit-logs')
   getAuditLogs(
-    @Req() req: any, 
-    @Query('action') action?: string, 
-    @Query('startDate') startDate?: string, 
-    @Query('endDate') endDate?: string, 
-    @Query('page') page?: string
+    @Req() req: any,
+    @Query('action') action?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
   ) {
     const role = req.user?.role;
     if (role !== 'admin' && role !== 'manager') {
       throw new UnauthorizedException('Only admins can view audit logs');
     }
-    return this.adminService.getAuditLogs({ 
-      page: page ? parseInt(page) : 1 
+    return this.adminService.getAuditLogs({
+      page: page ? parseInt(page) : 1,
     });
   }
 
@@ -106,7 +122,7 @@ export class AdminController {
   @Post('force-clean')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  forceClean(@Req() req: any) {
+  forceClean() {
     return this.adminService.forceClean();
   }
 }

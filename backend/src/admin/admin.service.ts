@@ -13,48 +13,51 @@ export class AdminService {
     const todaySessions = await this.prisma.tableSession.findMany({
       where: {
         startedAt: { gte: today },
-        endedAt: { not: null }
-      }
+        endedAt: { not: null },
+      },
     });
-    const totalRevenueToday = todaySessions.reduce((sum, session) => sum + Number(session.totalAmount), 0);
+    const totalRevenueToday = todaySessions.reduce(
+      (sum, session) => sum + Number(session.totalAmount),
+      0,
+    );
 
     // Total Orders Today
     const totalOrdersToday = await this.prisma.order.count({
       where: {
         createdAt: { gte: today },
-        status: { not: 'cancelled' }
-      }
+        status: { not: 'cancelled' },
+      },
     });
 
     // Active Tables
     const activeTables = await this.prisma.table.count({
       where: {
-        status: { not: 'empty' }
-      }
+        status: { not: 'empty' },
+      },
     });
 
     // Top Items
     const topItemsData = await this.prisma.orderItem.groupBy({
       by: ['menuItemId', 'name'],
       _sum: {
-        quantity: true
+        quantity: true,
       },
       orderBy: {
         _sum: {
-          quantity: 'desc'
-        }
+          quantity: 'desc',
+        },
       },
-      take: 5
+      take: 5,
     });
 
-    const topItems = topItemsData.map(item => ({
+    const topItems = topItemsData.map((item) => ({
       id: item.menuItemId,
       name: item.name,
-      sold: item._sum.quantity
+      sold: item._sum.quantity,
     }));
 
     // Revenue by Day (7 days)
-    const revenueByDay: { date: string, revenue: number }[] = [];
+    const revenueByDay: { date: string; revenue: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const start = new Date(today);
       start.setDate(start.getDate() - i);
@@ -64,13 +67,19 @@ export class AdminService {
       const daySessions = await this.prisma.tableSession.findMany({
         where: {
           startedAt: { gte: start, lt: end },
-          endedAt: { not: null }
-        }
+          endedAt: { not: null },
+        },
       });
-      const dayRev = daySessions.reduce((sum, session) => sum + Number(session.totalAmount), 0);
+      const dayRev = daySessions.reduce(
+        (sum, session) => sum + Number(session.totalAmount),
+        0,
+      );
       revenueByDay.push({
-        date: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: dayRev
+        date: start.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        revenue: dayRev,
       });
     }
 
@@ -79,7 +88,7 @@ export class AdminService {
       totalOrdersToday,
       activeTables,
       topItems,
-      revenueByDay
+      revenueByDay,
     };
   }
 
@@ -88,11 +97,11 @@ export class AdminService {
     today.setHours(0, 0, 0, 0);
 
     const todaySessions = await this.prisma.tableSession.findMany({
-      where: { startedAt: { gte: today }, endedAt: { not: null } }
+      where: { startedAt: { gte: today }, endedAt: { not: null } },
     });
-    
+
     const revenueByHour: number[] = Array(24).fill(0);
-    todaySessions.forEach(session => {
+    todaySessions.forEach((session) => {
       const hour = (session.paidAt || session.startedAt).getHours();
       revenueByHour[hour] += Number(session.totalAmount || 0);
     });
@@ -100,33 +109,40 @@ export class AdminService {
     const ordersByTableMap = new Map<string, number>();
     const allOrdersLabelled = await this.prisma.order.findMany({
       where: { createdAt: { gte: today }, status: { not: 'cancelled' } },
-      include: { table: true }
+      include: { table: true },
     });
-    allOrdersLabelled.forEach(order => {
-      const tableName = order.table?.name?.replace('Table', '').trim() || order.tableId.toString();
-      ordersByTableMap.set(tableName, (ordersByTableMap.get(tableName) || 0) + 1);
+    allOrdersLabelled.forEach((order) => {
+      const tableName =
+        order.table?.name?.replace('Table', '').trim() ||
+        order.tableId.toString();
+      ordersByTableMap.set(
+        tableName,
+        (ordersByTableMap.get(tableName) || 0) + 1,
+      );
     });
-    const ordersByTable = Array.from(ordersByTableMap.entries()).map(([name, count]) => ({
-      tableName: name,
-      orders: count
-    }));
+    const ordersByTable = Array.from(ordersByTableMap.entries()).map(
+      ([name, count]) => ({
+        tableName: name,
+        orders: count,
+      }),
+    );
 
     const topItemsData = await this.prisma.orderItem.groupBy({
       by: ['menuItemId', 'name'],
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: 'desc' } },
-      take: 10
+      take: 10,
     });
-    const topItems = topItemsData.map(item => ({
+    const topItems = topItemsData.map((item) => ({
       id: item.menuItemId,
       name: item.name,
-      sold: item._sum.quantity
+      sold: item._sum.quantity,
     }));
 
     return {
       revenueByHour,
       ordersByTable,
-      topItems
+      topItems,
     };
   }
 
@@ -138,28 +154,36 @@ export class AdminService {
       where: {
         startedAt: { gte: today },
       },
-      include: { table: true }
+      include: { table: true },
     });
 
     const totalSessions = todaySessions.length;
-    const totalRevenue = todaySessions.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
+    const totalRevenue = todaySessions.reduce(
+      (sum, s) => sum + Number(s.totalAmount || 0),
+      0,
+    );
 
     const revenueByTableMap = new Map<string, number>();
-    todaySessions.forEach(session => {
+    todaySessions.forEach((session) => {
       const tableName = session.table?.name || 'Unknown Table';
       const current = revenueByTableMap.get(tableName) || 0;
-      revenueByTableMap.set(tableName, current + Number(session.totalAmount || 0));
+      revenueByTableMap.set(
+        tableName,
+        current + Number(session.totalAmount || 0),
+      );
     });
 
-    const revenueByTable = Array.from(revenueByTableMap.entries()).map(([name, revenue]) => ({
-      tableName: name,
-      revenue
-    }));
+    const revenueByTable = Array.from(revenueByTableMap.entries()).map(
+      ([name, revenue]) => ({
+        tableName: name,
+        revenue,
+      }),
+    );
 
     return {
       totalRevenue,
       totalSessions,
-      revenueByTable
+      revenueByTable,
     };
   }
 
@@ -181,10 +205,13 @@ export class AdminService {
 
     const sessions = await this.prisma.tableSession.findMany({
       where,
-      select: { totalAmount: true, paidAt: true }
+      select: { totalAmount: true, paidAt: true },
     });
 
-    const totalRevenue = sessions.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
+    const totalRevenue = sessions.reduce(
+      (sum, s) => sum + Number(s.totalAmount || 0),
+      0,
+    );
     const totalOrders = sessions.length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -210,32 +237,52 @@ export class AdminService {
 
     const [todaySessions, monthSessions, yearSessions] = await Promise.all([
       this.prisma.tableSession.findMany({
-        where: { paidAt: { gte: todayStart, not: null }, endedAt: { not: null } },
-        select: { totalAmount: true }
+        where: {
+          paidAt: { gte: todayStart, not: null },
+          endedAt: { not: null },
+        },
+        select: { totalAmount: true },
       }),
       this.prisma.tableSession.findMany({
-        where: { paidAt: { gte: monthStart, not: null }, endedAt: { not: null } },
-        select: { totalAmount: true }
+        where: {
+          paidAt: { gte: monthStart, not: null },
+          endedAt: { not: null },
+        },
+        select: { totalAmount: true },
       }),
       this.prisma.tableSession.findMany({
-        where: { paidAt: { gte: yearStart, not: null }, endedAt: { not: null } },
-        select: { totalAmount: true }
-      })
+        where: {
+          paidAt: { gte: yearStart, not: null },
+          endedAt: { not: null },
+        },
+        select: { totalAmount: true },
+      }),
     ]);
 
     const sumSessions = (sessions: { totalAmount: any }[]) =>
       sessions.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
 
     return {
-      today: { totalRevenue: sumSessions(todaySessions), totalOrders: todaySessions.length },
-      month: { totalRevenue: sumSessions(monthSessions), totalOrders: monthSessions.length },
-      year:  { totalRevenue: sumSessions(yearSessions), totalOrders: yearSessions.length },
+      today: {
+        totalRevenue: sumSessions(todaySessions),
+        totalOrders: todaySessions.length,
+      },
+      month: {
+        totalRevenue: sumSessions(monthSessions),
+        totalOrders: monthSessions.length,
+      },
+      year: {
+        totalRevenue: sumSessions(yearSessions),
+        totalOrders: yearSessions.length,
+      },
     };
   }
 
   async getRevenueChart(from?: string, to?: string) {
     const now = new Date();
-    const startDate = from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const startDate = from
+      ? new Date(from)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
     const endDate = to ? new Date(to) : now;
     endDate.setHours(23, 59, 59, 999);
 
@@ -244,7 +291,7 @@ export class AdminService {
         paidAt: { gte: startDate, lte: endDate, not: null },
         endedAt: { not: null },
       },
-      select: { totalAmount: true, paidAt: true }
+      select: { totalAmount: true, paidAt: true },
     });
 
     // Group by day
@@ -252,7 +299,10 @@ export class AdminService {
     for (const s of sessions) {
       if (!s.paidAt) continue;
       const dayKey = s.paidAt.toISOString().slice(0, 10); // YYYY-MM-DD
-      dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + Number(s.totalAmount || 0));
+      dailyMap.set(
+        dayKey,
+        (dailyMap.get(dayKey) || 0) + Number(s.totalAmount || 0),
+      );
     }
 
     // Fill gaps for all dates in range
@@ -273,38 +323,44 @@ export class AdminService {
     const sessions = await this.prisma.tableSession.findMany({
       where: { endedAt: { not: null } },
       orderBy: { endedAt: 'desc' },
-      include: { table: true, orders: { include: { items: true } } }
+      include: { table: true, orders: { include: { items: true } } },
     });
-    
-    return sessions.map(session => {
-       const items: any[] = [];
-       for (const order of session.orders) {
-          if (order.status !== 'cancelled') {
-             for (const item of order.items) {
-                if (item.status === 'ready') {
-                   items.push(item);
-                }
-             }
+
+    return sessions.map((session) => {
+      const items: any[] = [];
+      for (const order of session.orders) {
+        if (order.status !== 'cancelled') {
+          for (const item of order.items) {
+            if (item.status === 'ready') {
+              items.push(item);
+            }
           }
-       }
-       const total = Number(session.totalAmount || 0);
-       const subtotal = total;
-       
-       return {
-         sessionId: session.id,
-         tableId: session.tableId,
-         tableNumber: session.table?.name?.replace('Table', '').trim() || session.tableId,
-         startedAt: session.startedAt,
-         endedAt: session.endedAt,
-         items,
-         subtotal,
-         total,
-         billPrinted: (session as any).billPrinted || false
-       };
+        }
+      }
+      const total = Number(session.totalAmount || 0);
+      const subtotal = total;
+
+      return {
+        sessionId: session.id,
+        tableId: session.tableId,
+        tableNumber:
+          session.table?.name?.replace('Table', '').trim() || session.tableId,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        items,
+        subtotal,
+        total,
+        billPrinted: (session as any).billPrinted || false,
+      };
     });
   }
 
-  async getAuditLogs(filters: { action?: string, startDate?: string, endDate?: string, page: number }) {
+  async getAuditLogs(filters: {
+    action?: string;
+    startDate?: string;
+    endDate?: string;
+    page: number;
+  }) {
     const take = 50;
     const skip = (filters.page - 1) * take;
 
@@ -322,9 +378,9 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         skip,
         take,
-        include: { user: { select: { id: true, email: true, role: true } } }
+        include: { user: { select: { id: true, email: true, role: true } } },
       }),
-      this.prisma.auditLog.count({ where })
+      this.prisma.auditLog.count({ where }),
     ]);
 
     return {
@@ -332,15 +388,15 @@ export class AdminService {
       meta: {
         total,
         page: filters.page,
-        lastPage: Math.ceil(total / take)
-      }
+        lastPage: Math.ceil(total / take),
+      },
     };
   }
 
   async cleanupDatabase() {
     const sessions = await this.prisma.tableSession.findMany({
       where: { endedAt: null },
-      include: { orders: true }
+      include: { orders: true },
     });
 
     let cleaned = 0;
@@ -349,7 +405,7 @@ export class AdminService {
       if (!s.orders || s.orders.length === 0) {
         await this.prisma.tableSession.update({
           where: { id: s.id },
-          data: { endedAt: new Date(), totalAmount: 0 }
+          data: { endedAt: new Date(), totalAmount: 0 },
         });
         cleaned++;
       }
@@ -357,23 +413,23 @@ export class AdminService {
 
     return {
       success: true,
-      cleanedSessions: cleaned
+      cleanedSessions: cleaned,
     };
   }
 
   async forceCloseBrokenSessions() {
     const sessions = await this.prisma.tableSession.findMany({
       where: { endedAt: null },
-      include: { orders: true }
+      include: { orders: true },
     });
 
     for (const s of sessions) {
       if (s.orders.length === 0) {
-        console.warn("CLOSING EMPTY SESSION:", s.id);
+        console.warn('CLOSING EMPTY SESSION:', s.id);
 
         await this.prisma.tableSession.update({
           where: { id: s.id },
-          data: { endedAt: new Date() }
+          data: { endedAt: new Date() },
         });
       }
     }

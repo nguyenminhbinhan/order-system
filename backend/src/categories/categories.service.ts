@@ -12,11 +12,17 @@ export class CategoriesService {
   }
 
   findAll() {
-    return this.prisma.category.findMany({ orderBy: { sortOrder: 'asc' }, include: { menuItems: true } });
+    return this.prisma.category.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: { menuItems: true },
+    });
   }
 
   async findOne(id: string) {
-    const category = await this.prisma.category.findUnique({ where: { id }, include: { menuItems: true } });
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { menuItems: true },
+    });
     if (!category) throw new NotFoundException('Category not found');
     return category;
   }
@@ -31,4 +37,3 @@ export class CategoriesService {
     return this.prisma.category.delete({ where: { id } });
   }
 }
-

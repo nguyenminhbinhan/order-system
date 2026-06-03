@@ -15,12 +15,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   /**
    * CRITICAL FIX: Return the JWT payload directly instead of querying DB.
-   * 
+   *
    * Previous behavior: Called usersService.findOne(payload.sub) on EVERY request
    * → Extra DB roundtrip per API call
    * → If DB is slow/down, ALL requests fail with 401
    * → Returns full Prisma user (including password hash!)
-   * 
+   *
    * New behavior: Trust the signed JWT payload. The token is cryptographically
    * verified by Passport, so the payload is trustworthy.
    * Role freshness is guaranteed by the refresh endpoint (which re-fetches from DB).
@@ -29,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload.sub || !payload.role) {
       throw new UnauthorizedException('Invalid token payload');
     }
-    
+
     return {
       id: payload.sub,
       email: payload.email,

@@ -201,6 +201,12 @@ const getProgressColor = (minutes: number) => {
   return 'bg-emerald-500';
 };
 
+const activeOrders = computed(() => {
+  return orderStore.orderHistory.filter(o => 
+    o.items && o.items.some((i: any) => ['confirmed', 'preparing'].includes(i.status))
+  );
+});
+
 // Total items count for active orders
 const totalActiveItems = computed(() => 
   activeOrders.value.reduce((sum, o) => 
@@ -208,6 +214,7 @@ const totalActiveItems = computed(() =>
     0
   )
 );
+
 
 
 

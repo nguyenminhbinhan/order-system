@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -37,7 +48,11 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'manager')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @Req() req: any,
+  ) {
     if (dto.role === 'admin' && req.user?.role !== 'admin') {
       throw new UnauthorizedException('Managers cannot grant admin roles');
     }
@@ -59,4 +74,3 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 }
-

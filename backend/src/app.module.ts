@@ -31,7 +31,7 @@ import { AppCacheModule } from './cache/cache.module';
     AuthModule,
     SocketModule,
     AdminModule,
-    MessagesModule
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

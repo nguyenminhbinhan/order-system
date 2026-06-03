@@ -1,4 +1,10 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
@@ -30,19 +36,19 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('joinKitchen')
   handleJoinKitchen(client: Socket) {
-    client.join('kitchen');
+    void client.join('kitchen');
     this.logger.log(`Client ${client.id} joined kitchen`);
   }
 
   @SubscribeMessage('joinService')
   handleJoinService(client: Socket) {
-    client.join('service');
+    void client.join('service');
     this.logger.log(`Client ${client.id} joined service`);
   }
 
   @SubscribeMessage('joinCustomer')
   handleJoinCustomer(client: Socket, orderId: string) {
-    client.join(`order_${orderId}`);
+    void client.join(`order_${orderId}`);
     this.logger.log(`Client ${client.id} joined order_${orderId}`);
   }
 
@@ -52,31 +58,31 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage('joinTable')
   handleJoinTable(client: Socket, tableId: number) {
-    client.join(`table_${tableId}`);
+    void client.join(`table_${tableId}`);
     this.logger.log(`Client ${client.id} joined table_${tableId}`);
   }
 
   @SubscribeMessage('leaveKitchen')
   handleLeaveKitchen(client: Socket) {
-    client.leave('kitchen');
+    void client.leave('kitchen');
     this.logger.log(`Client ${client.id} left kitchen`);
   }
 
   @SubscribeMessage('leaveService')
   handleLeaveService(client: Socket) {
-    client.leave('service');
+    void client.leave('service');
     this.logger.log(`Client ${client.id} left service`);
   }
 
   @SubscribeMessage('leaveCustomer')
   handleLeaveCustomer(client: Socket, orderId: string) {
-    client.leave(`order_${orderId}`);
+    void client.leave(`order_${orderId}`);
     this.logger.log(`Client ${client.id} left order_${orderId}`);
   }
 
   @SubscribeMessage('leaveTable')
   handleLeaveTable(client: Socket, tableId: number) {
-    client.leave(`table_${tableId}`);
+    void client.leave(`table_${tableId}`);
     this.logger.log(`Client ${client.id} left table_${tableId}`);
   }
 
@@ -86,7 +92,15 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Server re-emits to service room with 3-second throttle per table.
    */
   @SubscribeMessage('customerCartUpdate')
-  handleCustomerCartUpdate(client: Socket, payload: { tableId: number; tableName: string; itemCount: number; description: string }) {
+  handleCustomerCartUpdate(
+    client: Socket,
+    payload: {
+      tableId: number;
+      tableName: string;
+      itemCount: number;
+      description: string;
+    },
+  ) {
     const { tableId } = payload;
     const now = Date.now();
     const lastEmit = this.cartUpdateThrottles.get(tableId) || 0;
@@ -133,8 +147,14 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * - Service room: tableUpdated (waiter refreshes table state)
    * - Global: dashboardUpdated (admin analytics refresh)
    */
-  emitPaymentCompleted(payload: { tableId: number; paymentId?: string; sessionId?: string }) {
-    this.logger.log(`Emitting paymentCompleted for table ${payload.tableId} with session ${payload.sessionId}`);
+  emitPaymentCompleted(payload: {
+    tableId: number;
+    paymentId?: string;
+    sessionId?: string;
+  }) {
+    this.logger.log(
+      `Emitting paymentCompleted for table ${payload.tableId} with session ${payload.sessionId}`,
+    );
     this.server.emit('paymentCompleted', payload);
     this.server.to('service').emit('tableUpdated', payload.tableId);
     this.server.emit('dashboardUpdated', {});
@@ -151,7 +171,14 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitCustomerActivity(payload: {
     tableId: number;
     tableName: string;
-    type: 'SCAN_QR' | 'ORDER_PLACED' | 'PAYMENT_CONFIRMED' | 'CART_UPDATE' | 'ITEM_CANCELLED' | 'CALL_WAITER' | 'REQUEST_PAYMENT';
+    type:
+      | 'SCAN_QR'
+      | 'ORDER_PLACED'
+      | 'PAYMENT_CONFIRMED'
+      | 'CART_UPDATE'
+      | 'ITEM_CANCELLED'
+      | 'CALL_WAITER'
+      | 'REQUEST_PAYMENT';
     description: string;
     metadata?: Record<string, any>;
   }) {
@@ -159,15 +186,25 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ...payload,
       timestamp: new Date().toISOString(),
     };
-    this.logger.log(`Customer activity: ${payload.type} on table ${payload.tableId}`);
+    this.logger.log(
+      `Customer activity: ${payload.type} on table ${payload.tableId}`,
+    );
     this.server.to('service').emit('customerActivity', event);
   }
 
   /**
    * Emit order item cancellation to all parties.
    */
-  emitOrderItemCancelled(payload: { orderId: string; itemId: string; tableId: number; itemName: string; reason?: string }) {
-    this.logger.log(`Order item cancelled: ${payload.itemName} in order ${payload.orderId}`);
+  emitOrderItemCancelled(payload: {
+    orderId: string;
+    itemId: string;
+    tableId: number;
+    itemName: string;
+    reason?: string;
+  }) {
+    this.logger.log(
+      `Order item cancelled: ${payload.itemName} in order ${payload.orderId}`,
+    );
     this.server.emit('orderUpdated', payload);
     this.server.to('service').emit('tableUpdated', payload.tableId);
     this.server.to('kitchen').emit('orderUpdated', payload);
@@ -178,7 +215,11 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Emit table lock/unlock state change to all parties.
    * Customer devices, service, kitchen, and admin all need to know.
    */
-  emitTableLocked(payload: { tableId: number; isLocked: boolean; tableName?: string }) {
+  emitTableLocked(payload: {
+    tableId: number;
+    isLocked: boolean;
+    tableName?: string;
+  }) {
     this.logger.log(`Table ${payload.tableId} lock state: ${payload.isLocked}`);
     this.server.emit('tableLocked', payload);
     this.server.to('service').emit('tableUpdated', payload.tableId);
@@ -189,8 +230,17 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Emit individual item status change.
    * Used for per-item confirmation, kitchen status updates.
    */
-  emitItemStatusChanged(payload: { orderId: string; itemId: string; tableId: number; itemName: string; newStatus: string; oldStatus: string }) {
-    this.logger.log(`Item ${payload.itemName} status: ${payload.oldStatus} → ${payload.newStatus}`);
+  emitItemStatusChanged(payload: {
+    orderId: string;
+    itemId: string;
+    tableId: number;
+    itemName: string;
+    newStatus: string;
+    oldStatus: string;
+  }) {
+    this.logger.log(
+      `Item ${payload.itemName} status: ${payload.oldStatus} → ${payload.newStatus}`,
+    );
     this.server.emit('itemStatusChanged', payload);
     this.server.to('service').emit('tableUpdated', payload.tableId);
     this.server.to('kitchen').emit('itemStatusChanged', payload);

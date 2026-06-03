@@ -22,7 +22,9 @@ export class StorageService {
       this.useCloudinary = true;
       console.log('[STORAGE] Cloudinary successfully configured and enabled.');
     } else {
-      console.warn('[STORAGE] Cloudinary credentials missing. Falling back to local/persistent volume storage.');
+      console.warn(
+        '[STORAGE] Cloudinary credentials missing. Falling back to local/persistent volume storage.',
+      );
     }
   }
 
@@ -43,8 +45,8 @@ export class StorageService {
     // Replace non-alphanumeric characters with hyphens
     clean = clean
       .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')             // collapse duplicate hyphens
-      .replace(/^-|-$/g, '');          // trim leading/trailing hyphens
+      .replace(/-+/g, '-') // collapse duplicate hyphens
+      .replace(/^-|-$/g, ''); // trim leading/trailing hyphens
 
     // Fallback to random if empty
     if (!clean) {
@@ -78,10 +80,13 @@ export class StorageService {
                 .then(resolve)
                 .catch(reject);
             } else {
-              console.log('[STORAGE] Uploaded directly to Cloudinary:', result?.secure_url);
+              console.log(
+                '[STORAGE] Uploaded directly to Cloudinary:',
+                result?.secure_url,
+              );
               resolve(result?.secure_url || '');
             }
-          }
+          },
         );
         Readable.from(file.buffer).pipe(uploadStream);
       });
@@ -92,11 +97,11 @@ export class StorageService {
 
   private async saveFileLocally(file: any, filename: string): Promise<string> {
     const uploadsDir = path.join(process.cwd(), 'uploads');
-    
+
     // Ensure directory exists
     try {
       await fs.mkdir(uploadsDir, { recursive: true });
-    } catch (err) {
+    } catch (_err) {
       // ignore if already exists
     }
 
@@ -115,10 +120,16 @@ export class StorageService {
         const parts = filename.split('/');
         const folderAndId = parts.slice(parts.indexOf('upload') + 2).join('/');
         const publicIdWithExt = folderAndId.replace(/^v\d+\//, '');
-        const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf('.'));
+        const publicId = publicIdWithExt.substring(
+          0,
+          publicIdWithExt.lastIndexOf('.'),
+        );
 
         if (this.useCloudinary && publicId) {
-          console.log('[STORAGE] Deleting from Cloudinary with publicId:', publicId);
+          console.log(
+            '[STORAGE] Deleting from Cloudinary with publicId:',
+            publicId,
+          );
           await cloudinary.uploader.destroy(publicId);
         }
       } catch (err) {
@@ -130,7 +141,7 @@ export class StorageService {
       try {
         await fs.unlink(filePath);
         console.log('[STORAGE] Deleted local file:', filePath);
-      } catch (err) {
+      } catch (_err) {
         // Ignore if file doesn't exist
       }
     }

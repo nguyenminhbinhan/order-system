@@ -8,7 +8,13 @@ export class OptionItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(dto: CreateOptionItemDto) {
-    return this.prisma.optionItem.create({ data: { menu: { connect: { id: dto.menuId } }, name: dto.name, required: dto.required } });
+    return this.prisma.optionItem.create({
+      data: {
+        menu: { connect: { id: dto.menuId } },
+        name: dto.name,
+        required: dto.required,
+      },
+    });
   }
 
   findAll() {
@@ -31,4 +37,3 @@ export class OptionItemsService {
     return this.prisma.optionItem.delete({ where: { id } });
   }
 }
-

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -23,17 +27,23 @@ export class UsersService {
           status: createUserDto.status || 'active',
         },
       });
-    } catch (error) {
+    } catch (_error) {
       throw new BadRequestException('Could not create user');
     }
   }
 
   async findAll() {
-    return this.prisma.user.findMany({ where: { isDeleted: false }, include: { menuItems: true } });
+    return this.prisma.user.findMany({
+      where: { isDeleted: false },
+      include: { menuItems: true },
+    });
   }
 
   async findOne(id: string) {
-    const user: any = await this.prisma.user.findUnique({ where: { id }, include: { menuItems: true } });
+    const user: any = await this.prisma.user.findUnique({
+      where: { id },
+      include: { menuItems: true },
+    });
     if (!user || user.isDeleted) throw new NotFoundException('User not found');
     return user;
   }
@@ -78,4 +88,3 @@ export class UsersService {
     return { id: user.id, name: user.name, role: user.role, email: user.email };
   }
 }
-

@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request } from 'express';
@@ -18,7 +24,9 @@ export class LoggingInterceptor implements NestInterceptor {
     const now = Date.now();
     return next.handle().pipe(
       tap(() => {
-        this.logger.log(`[${method}] ${url} - User: ${userId} (${role}) - ${Date.now() - now}ms`);
+        this.logger.log(
+          `[${method}] ${url} - User: ${userId} (${role}) - ${Date.now() - now}ms`,
+        );
       }),
     );
   }

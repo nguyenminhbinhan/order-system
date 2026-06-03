@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, ForbiddenException, Req, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+  ForbiddenException,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -9,13 +21,13 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 /**
  * ORDER STATUS FLOW (Simplified Per-Item Lifecycle)
- * 
+ *
  * ITEM:  pending → confirmed → ready
  *             ↓
  *          cancelled (from pending or confirmed)
- * 
+ *
  * ORDER: derived from item statuses (computeOrderStatus)
- * 
+ *
  * - Waiter confirms items → confirmed (sent to kitchen)
  * - Kitchen marks ready → cooked
  */
@@ -24,27 +36,20 @@ import { Roles } from '../auth/decorators/roles.decorator';
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending_confirmation: ['confirmed', 'cancelled'],
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['preparing', 'cancelled'],
+  confirmed: ['preparing', 'ready', 'cancelled'],
   preparing: ['ready'],
   ready: ['cancelled'],
   cancelled: [],
 };
 
-// Valid ITEM status transitions
-const ITEM_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['preparing', 'cancelled'],
-  preparing: ['ready'],
-  ready: [],
-  cancelled: [],
-};
+// Note: Item status transitions are enforced in VALID_ITEM_TRANSITIONS within orders.service.ts
 
 // Role permissions
 const ROLE_STATUS_PERMISSIONS: Record<string, string[]> = {
-  kitchen:  ['preparing', 'ready'],
-  service:  ['confirmed', 'preparing', 'ready', 'cancelled'],
-  admin:    ['confirmed', 'preparing', 'ready', 'cancelled'],
-  manager:  ['confirmed', 'preparing', 'ready', 'cancelled'],
+  kitchen: ['preparing', 'ready'],
+  service: ['confirmed', 'preparing', 'ready', 'cancelled'],
+  admin: ['confirmed', 'preparing', 'ready', 'cancelled'],
+  manager: ['confirmed', 'preparing', 'ready', 'cancelled'],
 };
 
 @Controller('orders')
@@ -74,7 +79,11 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'manager', 'service')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateOrderDto, @Req() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderDto,
+    @Req() req: any,
+  ) {
     const userRole = req.user?.role;
 
     if (dto.status) {
@@ -82,7 +91,7 @@ export class OrdersController {
       const allowedStatuses = ROLE_STATUS_PERMISSIONS[userRole] || [];
       if (!allowedStatuses.includes(dto.status)) {
         throw new ForbiddenException(
-          `Role '${userRole}' cannot set status to '${dto.status}'.`
+          `Role '${userRole}' cannot set status to '${dto.status}'.`,
         );
       }
 
@@ -91,7 +100,7 @@ export class OrdersController {
       const validNextStatuses = STATUS_TRANSITIONS[order.status] || [];
       if (!validNextStatuses.includes(dto.status)) {
         throw new ForbiddenException(
-          `Invalid transition: '${order.status}' → '${dto.status}'.`
+          `Invalid transition: '${order.status}' → '${dto.status}'.`,
         );
       }
     }
@@ -120,7 +129,11 @@ export class OrdersController {
   @Post(':id/confirm-with-edits')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'manager', 'service')
-  confirmWithEdits(@Param('id') id: string, @Body() dto: ConfirmOrderDto, @Req() req: any) {
+  confirmWithEdits(
+    @Param('id') id: string,
+    @Body() dto: ConfirmOrderDto,
+    @Req() req: any,
+  ) {
     return this.ordersService.confirmWithEdits(id, dto.items, req.user);
   }
 
@@ -160,7 +173,12 @@ export class OrdersController {
     @Body() body: { status: string },
     @Req() req: any,
   ) {
-    return this.ordersService.updateItemStatus(orderId, itemId, body.status, req.user);
+    return this.ordersService.updateItemStatus(
+      orderId,
+      itemId,
+      body.status,
+      req.user,
+    );
   }
 
   // ==========================================
@@ -171,19 +189,25 @@ export class OrdersController {
    * Cancel a specific order item.
    * Customer calls without auth (role defaults to 'customer').
    * Staff calls with JWT for audit trail.
-   * 
+   *
    * STRICT: Only 'pending' items can be cancelled, regardless of role.
    */
   @Post(':orderId/items/:itemId/cancel')
   cancelOrderItem(
     @Param('orderId') orderId: string,
     @Param('itemId') itemId: string,
-    @Body() body: { reason?: string; role?: string },
+    @Body() body: { reason?: string },
     @Req() req: any,
   ) {
-    const role = req.user?.role || body.role || 'customer';
+    const role = req.user?.role || 'customer';
     const userId = req.user?.id || null;
-    return this.ordersService.cancelOrderItem(orderId, itemId, role, body.reason, userId);
+    return this.ordersService.cancelOrderItem(
+      orderId,
+      itemId,
+      role,
+      body.reason,
+      userId,
+    );
   }
 
   @Put(':id/items/:itemId')
@@ -195,6 +219,12 @@ export class OrdersController {
     @Body() body: { quantity: number; note: string },
     @Req() req: any,
   ) {
-    return this.ordersService.updateItemProperties(orderId, itemId, body.quantity, body.note, req.user);
+    return this.ordersService.updateItemProperties(
+      orderId,
+      itemId,
+      body.quantity,
+      body.note,
+      req.user,
+    );
   }
 }
