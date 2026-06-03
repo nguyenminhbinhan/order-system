@@ -175,6 +175,10 @@ onMounted(() => {
     fetchData();
   });
 
+  socketService.onItemStatusChanged(() => {
+    fetchData();
+  });
+
   // Customer activity notifications (Fix #3)
   socketService.onCustomerActivity((data: any) => {
     // Add to notification badges
@@ -216,6 +220,7 @@ onUnmounted(() => {
   socketService.off('paymentCompleted');
   socketService.off('tableUpdated');
   socketService.offCustomerActivity();
+  socketService.offItemStatusChanged();
 
   socketService.leaveService();
 });
@@ -434,8 +439,9 @@ const handleServiceStatusUpdate = async (orderId: string, newStatus: string) => 
 const orderStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
     pending_confirmation: 'Chờ xác nhận',
-    confirmed: '🔥 Đã gửi bếp',
-    ready: '✅ Đã nấu',
+    confirmed: 'Đã xác nhận',
+    preparing: 'Đang chế biến',
+    ready: 'Đã hoàn thành',
     cancelled: 'Đã huỷ',
   };
   return labels[status] || status;
@@ -444,7 +450,8 @@ const orderStatusLabel = (status: string): string => {
 const orderStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
     pending_confirmation: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    confirmed: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    preparing: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
     ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
@@ -1036,8 +1043,9 @@ const handleCookAllItems = async () => {
 const itemStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
     pending: 'Chờ xác nhận',
-    confirmed: 'Đã gửi bếp',
-    ready: 'Đã nấu',
+    confirmed: 'Đã xác nhận',
+    preparing: 'Đang chế biến',
+    ready: 'Đã nấu xong',
     cancelled: 'Đã hủy',
   };
   return labels[status] || status;
@@ -1047,6 +1055,7 @@ const itemStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
     confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    preparing: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
     ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 line-through',
   };
@@ -1311,16 +1320,16 @@ const itemStatusColor = (status: string): string => {
                         <div class="flex items-center gap-1.5">
                           <button 
                             @click.stop="handleUpdateQuantity(order.id, item, -1)"
-                            :disabled="item.status !== 'pending'"
-                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95 text-slate-700 dark:text-slate-300', item.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-150 dark:bg-slate-800 border-slate-250 dark:border-slate-700' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 border-slate-300 dark:border-slate-600']"
+                            :disabled="item.status !== 'pending' && item.status !== 'confirmed'"
+                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95 text-slate-700 dark:text-slate-300', (item.status !== 'pending' && item.status !== 'confirmed') ? 'opacity-50 cursor-not-allowed bg-slate-150 dark:bg-slate-800 border-slate-250 dark:border-slate-700' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 border-slate-300 dark:border-slate-600']"
                           >
                             −
                           </button>
                           <span class="text-xs font-black w-6 text-center text-slate-800 dark:text-slate-100">{{ item.quantity }}</span>
                           <button 
                             @click.stop="handleUpdateQuantity(order.id, item, 1)"
-                            :disabled="item.status !== 'pending'"
-                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95', item.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-150 dark:bg-slate-800 border-slate-250 dark:border-slate-700 text-slate-700 dark:text-slate-300' : 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20']"
+                            :disabled="item.status !== 'pending' && item.status !== 'confirmed'"
+                            :class="['size-6 rounded flex items-center justify-center text-xs font-bold transition-all border active:scale-95', (item.status !== 'pending' && item.status !== 'confirmed') ? 'opacity-50 cursor-not-allowed bg-slate-150 dark:bg-slate-800 border-slate-250 dark:border-slate-700 text-slate-700 dark:text-slate-300' : 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20']"
                           >
                             +
                           </button>
@@ -1369,14 +1378,15 @@ const itemStatusColor = (status: string): string => {
 
                     <!-- Ghi chú input -->
                     <div class="flex items-center gap-1.5 w-full">
-                      <span class="material-symbols-outlined text-slate-400 text-xs shrink-0">edit_note</span>
+                      <span v-if="['preparing', 'ready', 'cancelled'].includes(item.status)" class="material-symbols-outlined text-red-500 text-xs shrink-0" title="Đã khóa chỉnh sửa">lock</span>
+                      <span v-else class="material-symbols-outlined text-slate-400 text-xs shrink-0">edit_note</span>
                       <input 
                         v-model="itemNotes[item.id]" 
-                        :disabled="item.status !== 'pending'"
+                        :disabled="item.status !== 'pending' && item.status !== 'confirmed'"
                         @blur="handleSaveItemNote(order.id, item)"
                         @keydown.enter="handleSaveItemNote(order.id, item)"
                         placeholder="Ghi chú cho bếp..." 
-                        :class="['flex-1 text-[11px] border rounded px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary/50', item.status !== 'pending' ? 'opacity-60 cursor-not-allowed border-slate-100 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700']" 
+                        :class="['flex-1 text-[11px] border rounded px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary/50', (item.status !== 'pending' && item.status !== 'confirmed') ? 'opacity-60 cursor-not-allowed border-slate-100 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700']" 
                       />
                     </div>
                   </div>

@@ -17,7 +17,8 @@ import { OrderStatus } from '@prisma/client';
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['ready', 'cancelled'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready'],
   ready: [],
   cancelled: [],
 };
@@ -45,12 +46,17 @@ export class OrdersService {
 
     const statuses = nonCancelled.map(i => i.status);
 
-    // If any pending -> pending_confirmation
+    // If any pending -> pending_confirmation (requires waiter approval)
     if (statuses.some(s => s === 'pending')) return 'pending_confirmation' as OrderStatus;
-    // All ready -> ready
+    
+    // If all ready -> ready (all dishes cooked)
     if (statuses.every(s => s === 'ready')) return 'ready' as OrderStatus;
-    // Any confirmed (or legacy preparing) -> confirmed
-    if (statuses.some(s => s === 'confirmed' || s === 'preparing')) return 'confirmed' as OrderStatus;
+    
+    // If any preparing -> preparing (cooking in progress)
+    if (statuses.some(s => s === 'preparing')) return 'preparing' as OrderStatus;
+    
+    // If any confirmed -> confirmed (waiter approved, waiting for kitchen)
+    if (statuses.some(s => s === 'confirmed')) return 'confirmed' as OrderStatus;
 
     return 'pending_confirmation' as OrderStatus;
   }
@@ -759,23 +765,31 @@ export class OrdersService {
     const item = order.items.find(i => i.id === itemId);
     if (!item) throw new NotFoundException('Order item not found');
 
-    const role = user?.role || 'customer';
-    if (role === 'customer') {
-      if (item.status !== 'pending') {
-        throw new BadRequestException('Khách hàng chỉ có thể chỉnh sửa ghi chú hoặc số lượng của món chưa được xác nhận.');
-      }
-    } else {
-      const allowedStaffStatuses = ['pending', 'confirmed'];
-      if (!allowedStaffStatuses.includes(item.status)) {
-        throw new BadRequestException('Chỉ có thể chỉnh sửa số lượng hoặc ghi chú của món ở trạng thái Chờ xác nhận hoặc Đã xác nhận (chưa nấu).');
-      }
-    }
-
     if (quantity <= 0) {
       throw new BadRequestException('Số lượng phải lớn hơn 0. Để xóa món, vui lòng chọn Hủy món.');
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Query fresh status directly from DB inside transaction to prevent race conditions (Rule 4)
+      const dbItem = await tx.orderItem.findUnique({
+        where: { id: itemId }
+      });
+      if (!dbItem) {
+        throw new NotFoundException('Order item not found');
+      }
+
+      const role = user?.role || 'customer';
+      if (role === 'customer') {
+        if (dbItem.status !== 'pending') {
+          throw new BadRequestException('Khách hàng chỉ có thể chỉnh sửa ghi chú hoặc số lượng của món chưa được xác nhận.');
+        }
+      } else {
+        const allowedStaffStatuses = ['pending', 'confirmed'];
+        if (!allowedStaffStatuses.includes(dbItem.status)) {
+          throw new BadRequestException('Chỉ có thể chỉnh sửa số lượng hoặc ghi chú của món ở trạng thái Chờ xác nhận hoặc Đã xác nhận (chưa nấu).');
+        }
+      }
+
       await tx.orderItem.update({
         where: { id: itemId },
         data: { quantity, note },

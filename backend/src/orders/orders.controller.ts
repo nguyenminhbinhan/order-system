@@ -24,7 +24,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending_confirmation: ['confirmed', 'cancelled'],
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['ready', 'cancelled'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready'],
   ready: ['cancelled'],
   cancelled: [],
 };
@@ -32,17 +33,18 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 // Valid ITEM status transitions
 const ITEM_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['ready', 'cancelled'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready'],
   ready: [],
   cancelled: [],
 };
 
 // Role permissions
 const ROLE_STATUS_PERMISSIONS: Record<string, string[]> = {
-  kitchen:  [],
-  service:  ['confirmed', 'ready', 'cancelled'],
-  admin:    ['confirmed', 'ready', 'cancelled'],
-  manager:  ['confirmed', 'ready', 'cancelled'],
+  kitchen:  ['preparing', 'ready'],
+  service:  ['confirmed', 'preparing', 'ready', 'cancelled'],
+  admin:    ['confirmed', 'preparing', 'ready', 'cancelled'],
+  manager:  ['confirmed', 'preparing', 'ready', 'cancelled'],
 };
 
 @Controller('orders')
@@ -151,7 +153,7 @@ export class OrdersController {
    */
   @Post(':id/items/:itemId/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'manager', 'service')
+  @Roles('admin', 'manager', 'service', 'kitchen')
   updateItemStatus(
     @Param('id') orderId: string,
     @Param('itemId') itemId: string,

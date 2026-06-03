@@ -116,11 +116,11 @@ const statusInfo = computed(() => {
     case 'pending': 
       return { text: 'Chờ xác nhận', color: 'bg-yellow-500', progress: 20, msg: 'Đang chờ nhà hàng xác nhận đơn hàng.' };
     case 'confirmed':
-      return { text: 'Đã nhận đơn', color: 'bg-blue-500', progress: 40, msg: 'Đơn hàng đã được xác nhận và gửi xuống bếp!' };
+      return { text: 'Đã xác nhận', color: 'bg-blue-500', progress: 40, msg: 'Đơn hàng đã được xác nhận và gửi xuống bếp!' };
     case 'preparing': 
-      return { text: 'Đang nấu', color: 'bg-primary', progress: 70, msg: 'Đầu bếp đang chuẩn bị món ăn cho bạn!' };
+      return { text: 'Đang chế biến', color: 'bg-orange-500', progress: 70, msg: 'Đầu bếp đang chuẩn bị món ăn cho bạn!' };
     case 'ready': 
-      return { text: 'Sẵn sàng phục vụ', color: 'bg-emerald-500', progress: 100, msg: 'Món ăn của bạn đã nấu xong!' };
+      return { text: 'Đã hoàn thành', color: 'bg-emerald-500', progress: 100, msg: 'Món ăn của bạn đã nấu xong!' };
     case 'cancelled': 
       return { text: 'Đã hủy', color: 'bg-red-500', progress: 0, msg: 'Đơn hàng đã bị hủy.' };
     default: 

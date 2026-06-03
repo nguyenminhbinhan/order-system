@@ -252,8 +252,9 @@ const handleCheckout = async () => {
 const getStatusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending_confirmation: 'Chờ xác nhận',
-    confirmed: 'Đang nấu',
-    ready: 'Đã nấu',
+    confirmed: 'Đã xác nhận',
+    preparing: 'Đang chế biến',
+    ready: 'Đã hoàn thành',
     cancelled: 'Đã huỷ',
   };
   return map[status] || status;
@@ -262,7 +263,8 @@ const getStatusLabel = (status: string) => {
 const getStatusColor = (status: string) => {
   const map: Record<string, string> = {
     pending_confirmation: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    confirmed: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    preparing: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
     ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
@@ -272,7 +274,8 @@ const getStatusColor = (status: string) => {
 const getStatusIcon = (status: string) => {
   const map: Record<string, string> = {
     pending_confirmation: 'schedule',
-    confirmed: 'local_fire_department',
+    confirmed: 'check_circle',
+    preparing: 'local_fire_department',
     ready: 'done_all',
     cancelled: 'cancel',
   };
@@ -284,8 +287,8 @@ const itemStatusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending: 'Chờ xác nhận',
     confirmed: 'Đã xác nhận',
-    preparing: 'Đang nấu',
-    ready: 'Đã nấu xong',
+    preparing: 'Đang chế biến',
+    ready: 'Đã hoàn thành',
     cancelled: 'Đã hủy',
   };
   return map[status] || status;
