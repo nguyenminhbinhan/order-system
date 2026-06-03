@@ -12,6 +12,8 @@ import { useUserStore } from '@/stores/user.store';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { useRouter } from 'vue-router';
 import { resolveImageUrlSmall } from '@/utils/imageUrl';
+import FoodCard from '@/components/customer/FoodCard.vue';
+import CategoryFilter from '@/components/customer/CategoryFilter.vue';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -459,12 +461,33 @@ const staffCart = ref<any[]>([]);
 const staffSearchQuery = ref('');
 const staffActiveCategoryId = ref<string | null>(null);
 const isSubmittingStaffOrder = ref(false);
+const showMobileCartSheet = ref(false);
+
+const categoryMap: Record<string, string> = {
+  'All': 'Tất cả',
+  'Category 1': 'Món chính',
+  'Category 2': 'Món phụ',
+  'Category 3': 'Tráng miệng',
+  'Category 4': 'Nước uống'
+};
+
+const getCategoryDisplayName = (name: string) => {
+  return categoryMap[name] || name;
+};
+
+const getStaffCartQty = (itemId: string) => {
+  const found = staffCart.value.find(i => i.menuItemId === itemId);
+  return found ? found.quantity : 0;
+};
 
 const staffCategories = computed(() => {
   const catsMap = new Map();
   menuStore.menuItems.forEach((item: any) => {
     if (item.category) {
-      catsMap.set(item.category.id, item.category);
+      catsMap.set(item.category.id, {
+        ...item.category,
+        displayName: getCategoryDisplayName(item.category.name)
+      });
     }
   });
   return Array.from(catsMap.values()).sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0));
@@ -496,6 +519,7 @@ const openStaffOrderModal = (tableId: number) => {
   staffSearchQuery.value = '';
   staffActiveCategoryId.value = null;
   showStaffOrderModal.value = true;
+  showMobileCartSheet.value = false;
   menuStore.fetchMenuItems(true); // Force refresh
 };
 
@@ -1462,17 +1486,25 @@ const itemStatusColor = (status: string): string => {
         <!-- Staff Modal Header -->
         <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
           <div class="flex items-center gap-3">
-            <button @click="showStaffOrderModal = false" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <button 
+              @click="showStaffOrderModal = false" 
+              class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors focus:ring-2 focus:ring-slate-350 focus:outline-none"
+              aria-label="Quay lại"
+            >
               <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <div>
-              <h3 class="text-lg font-bold">Đặt món — Bàn {{ staffOrderTableId }}</h3>
-              <p class="text-xs text-slate-500">Chọn món và gửi bếp</p>
+              <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Đặt món — Bàn {{ staffOrderTableId }}</h3>
+              <p class="text-xs text-slate-500">Waiter-assisted ordering flow</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span v-if="staffCartCount > 0" class="bg-primary text-white text-xs font-bold px-2 py-1 rounded-full">{{ staffCartCount }} món</span>
-            <button @click="showStaffOrderModal = false" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+            <span v-if="staffCartCount > 0" class="bg-primary text-white text-xs font-bold px-2.5 py-1 rounded-full animate-scale-in">{{ staffCartCount }} món</span>
+            <button 
+              @click="showStaffOrderModal = false" 
+              class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg focus:ring-2 focus:ring-slate-350 focus:outline-none"
+              aria-label="Đóng"
+            >
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
@@ -1485,96 +1517,139 @@ const itemStatusColor = (status: string): string => {
           <div class="flex-1 flex flex-col overflow-hidden">
             
             <!-- Search + Categories -->
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 space-y-3 shrink-0">
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
-                <input v-model="staffSearchQuery" placeholder="Tìm món..." class="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/50" />
-              </div>
-              <div class="flex gap-2 overflow-x-auto no-scrollbar">
-                <button @click="staffActiveCategoryId = null" :class="['px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap', !staffActiveCategoryId ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200']">
-                  Tất cả
+            <div class="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 space-y-3 shrink-0 bg-white dark:bg-slate-900">
+              <div class="flex w-full items-stretch rounded-xl h-11 overflow-hidden bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                <div class="text-slate-400 flex items-center justify-center pl-3.5 select-none">
+                  <span class="material-symbols-outlined text-[20px]">search</span>
+                </div>
+                <input 
+                  v-model="staffSearchQuery"
+                  class="flex w-full min-w-0 flex-1 text-slate-900 dark:text-slate-100 focus:outline-none border-none bg-transparent h-full placeholder:text-slate-400 px-3 text-sm font-medium" 
+                  placeholder="Tìm món ăn, đồ uống..." 
+                  aria-label="Tìm món ăn"
+                />
+                <button 
+                  v-if="staffSearchQuery"
+                  @click="staffSearchQuery = ''"
+                  class="px-3.5 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:text-primary"
+                  aria-label="Xóa tìm kiếm"
+                >
+                  <span class="material-symbols-outlined text-[18px]">close</span>
                 </button>
-                <button v-for="cat in staffCategories" :key="cat.id" @click="staffActiveCategoryId = cat.id" :class="['px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap', staffActiveCategoryId === cat.id ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200']">
-                  {{ cat.name }}
-                </button>
               </div>
+              <CategoryFilter 
+                :categories="staffCategories" 
+                :activeCategoryId="staffActiveCategoryId" 
+                @select="(id) => staffActiveCategoryId = id" 
+              />
             </div>
 
             <!-- Menu Items Grid -->
-            <div class="flex-1 overflow-y-auto p-4">
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4">
               <div v-if="menuStore.loading" class="flex items-center justify-center p-12">
                 <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <div v-else-if="staffFilteredMenuItems.length === 0" class="text-center text-slate-500 p-12">
-                <span class="material-symbols-outlined text-4xl mb-2">search_off</span>
+              <div v-else-if="staffFilteredMenuItems.length === 0" class="text-center text-slate-500 p-12 flex flex-col items-center justify-center">
+                <span class="material-symbols-outlined text-4xl mb-2 opacity-60">search_off</span>
                 <p class="font-bold">Không tìm thấy món</p>
+                <p class="text-xs text-slate-400 mt-1">Thử đổi từ khóa hoặc danh mục khác</p>
               </div>
-              <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                <div 
+              <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 pb-24 md:pb-4 animate-fade-in">
+                <FoodCard 
                   v-for="menuItem in staffFilteredMenuItems" 
                   :key="menuItem.id" 
-                  @click="addToStaffCart(menuItem)"
-                  class="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group relative"
-                >
-                  <div class="aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    <img :src="getStaffImageUrl(menuItem)" :alt="menuItem.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform" @error="(e: any) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150?text=No+Image'; }" />
-                  </div>
-                  <div class="p-2.5">
-                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{{ menuItem.name }}</p>
-                    <p class="text-xs text-primary font-bold mt-0.5">{{ formatCurrency(Number(menuItem.price)) }}</p>
-                  </div>
-                  <!-- Quick quantity badge -->
-                  <div v-if="staffCart.find(i => i.menuItemId === menuItem.id)" class="absolute top-1.5 right-1.5 bg-primary text-white text-[10px] font-black size-6 rounded-full flex items-center justify-center shadow-lg">
-                    {{ staffCart.find(i => i.menuItemId === menuItem.id)?.quantity }}
-                  </div>
-                </div>
+                  :item="menuItem" 
+                  :customQty="getStaffCartQty(menuItem.id)"
+                  @add="addToStaffCart(menuItem)"
+                  @increment="staffCartItemQty(menuItem.id, 1)"
+                  @decrement="staffCartItemQty(menuItem.id, -1)"
+                />
               </div>
             </div>
           </div>
 
-          <!-- Staff Cart Sidebar (Right) -->
-          <div class="w-80 border-l border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-slate-900/50 shrink-0 hidden md:flex">
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800">
-              <h4 class="font-bold text-sm flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-[18px]">shopping_cart</span>
+          <!-- Staff Cart Sidebar (Right - Desktop only) -->
+          <div class="w-85 border-l border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-slate-900/50 shrink-0 hidden md:flex">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <h4 class="font-bold text-sm flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">shopping_cart</span>
                 Giỏ hàng ({{ staffCartCount }})
               </h4>
             </div>
             
-            <div class="flex-1 overflow-y-auto p-3 space-y-2">
-              <div v-if="staffCart.length === 0" class="text-center text-slate-400 p-8">
-                <span class="material-symbols-outlined text-3xl mb-2">add_shopping_cart</span>
-                <p class="text-xs font-bold">Chọn món từ menu</p>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+              <div v-if="staffCart.length === 0" class="text-center text-slate-450 dark:text-slate-500 py-12 flex flex-col items-center">
+                <div class="w-16 h-16 bg-slate-200/50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-slate-450 dark:text-slate-500">
+                  <span class="material-symbols-outlined text-3xl">add_shopping_cart</span>
+                </div>
+                <p class="text-xs font-bold">Chưa chọn món nào</p>
+                <p class="text-[10px] text-slate-400 mt-1">Chọn món từ danh sách bên trái</p>
               </div>
-              <div v-for="item in staffCart" :key="item.menuItemId" class="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                <div class="flex justify-between items-start mb-2">
-                  <p class="text-xs font-bold text-slate-800 dark:text-slate-200 flex-1 pr-2">{{ item.name }}</p>
-                  <button @click="removeFromStaffCart(item.menuItemId)" class="text-slate-300 hover:text-red-500 transition-colors">
-                    <span class="material-symbols-outlined text-[16px]">delete</span>
+              
+              <div v-for="item in staffCart" :key="item.menuItemId" class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-150 dark:border-slate-700/65 shadow-sm space-y-2.5">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1 pr-2">
+                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-snug line-clamp-2">{{ item.name }}</p>
+                    <p class="text-xs text-primary font-black mt-0.5">{{ formatCurrency(Number(item.price)) }}</p>
+                  </div>
+                  <button 
+                    @click="removeFromStaffCart(item.menuItemId)" 
+                    class="p-1 text-slate-400 hover:text-red-500 focus:text-red-500 focus:outline-none rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    aria-label="Xóa món"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
                   </button>
                 </div>
+                
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-1.5">
-                    <button @click="staffCartItemQty(item.menuItemId, -1)" class="size-6 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 flex items-center justify-center text-xs font-bold transition-colors">−</button>
-                    <span class="text-xs font-bold w-5 text-center">{{ item.quantity }}</span>
-                    <button @click="staffCartItemQty(item.menuItemId, 1)" class="size-6 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center text-xs font-bold transition-colors">+</button>
+                  <!-- Stepper quantity control matching customer styling exactly -->
+                  <div class="flex items-center bg-slate-100 dark:bg-slate-700/70 rounded-xl p-0.5 gap-1.5">
+                    <button 
+                      class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-slate-650 text-slate-700 dark:text-slate-200 active:scale-90 shadow-sm transition-all hover:bg-slate-50 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                      @click="staffCartItemQty(item.menuItemId, -1)"
+                      aria-label="Giảm số lượng"
+                    >
+                      <span class="material-symbols-outlined text-[16px]">remove</span>
+                    </button>
+                    <span class="text-xs font-black text-slate-800 dark:text-slate-200 min-w-[20px] text-center select-none">
+                      {{ item.quantity }}
+                    </span>
+                    <button 
+                      class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary text-white active:scale-90 shadow-sm transition-all hover:bg-primary/95 focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                      @click="staffCartItemQty(item.menuItemId, 1)"
+                      aria-label="Tăng số lượng"
+                    >
+                      <span class="material-symbols-outlined text-[16px]">add</span>
+                    </button>
                   </div>
-                  <span class="text-xs font-bold text-primary">{{ formatCurrency(item.price * item.quantity) }}</span>
+                  
+                  <span class="text-xs font-black text-slate-800 dark:text-slate-200">
+                    {{ formatCurrency(item.price * item.quantity) }}
+                  </span>
                 </div>
-                <input v-model="item.note" placeholder="Ghi chú..." class="w-full mt-2 text-[11px] border border-slate-100 dark:border-slate-700 rounded px-2 py-1 bg-slate-50 dark:bg-slate-900 focus:ring-1 focus:ring-primary/50" />
+                
+                <div class="relative flex items-center">
+                  <span class="material-symbols-outlined text-slate-400 text-xs absolute left-2.5 top-1/2 -translate-y-1/2 select-none">edit_note</span>
+                  <input 
+                    v-model="item.note" 
+                    placeholder="Ghi chú (ít đường, không đá...)" 
+                    class="w-full text-[11px] border border-slate-200 dark:border-slate-750 rounded-lg pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-primary/50 text-slate-800 dark:text-slate-200" 
+                    aria-label="Ghi chú cho món"
+                  />
+                </div>
               </div>
             </div>
 
             <!-- Cart Footer -->
-            <div class="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
               <div class="flex justify-between items-center">
-                <span class="text-sm font-bold text-slate-500">Tổng</span>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng tạm tính</span>
                 <span class="text-lg font-black text-primary">{{ formatCurrency(staffCartTotal) }}</span>
               </div>
               <button 
                 @click="submitStaffOrder"
                 :disabled="staffCart.length === 0 || isSubmittingStaffOrder"
-                class="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full py-4 bg-primary hover:bg-primary/95 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg shadow-primary/25 min-h-[48px] focus:ring-2 focus:ring-primary/40 focus:outline-none"
               >
                 <span v-if="isSubmittingStaffOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
                 <span v-else class="material-symbols-outlined text-[18px]">send</span>
@@ -1584,17 +1659,129 @@ const itemStatusColor = (status: string): string => {
           </div>
         </div>
 
-        <!-- Mobile Cart Footer (shown only on mobile when no sidebar) -->
-        <div v-if="staffCart.length > 0" class="md:hidden p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-          <button 
-            @click="submitStaffOrder"
-            :disabled="staffCart.length === 0 || isSubmittingStaffOrder"
-            class="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-          >
-            <span v-if="isSubmittingStaffOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
-            <span v-else class="material-symbols-outlined text-[18px]">send</span>
-            {{ isSubmittingStaffOrder ? 'Đang gửi...' : `Gửi đơn • ${formatCurrency(staffCartTotal)}` }}
-          </button>
+        <!-- Mobile Floating Cart Bar (shown only on mobile when no sidebar and cart has items) -->
+        <div 
+          v-if="staffCart.length > 0 && !showMobileCartSheet" 
+          class="md:hidden p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        >
+          <div class="flex gap-3">
+            <button 
+              @click="showMobileCartSheet = true"
+              class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-sm min-h-[44px] focus:ring-2 focus:ring-slate-350 focus:outline-none"
+            >
+              <span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+              Giỏ hàng ({{ staffCartCount }})
+            </button>
+            <button 
+              @click="submitStaffOrder"
+              :disabled="isSubmittingStaffOrder"
+              class="flex-1 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-sm min-h-[44px] focus:ring-2 focus:ring-primary/40 focus:outline-none shadow-md shadow-primary/20"
+            >
+              <span v-if="isSubmittingStaffOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
+              <span v-else class="material-symbols-outlined text-[18px]">send</span>
+              Gửi đơn • {{ formatCurrency(staffCartTotal) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Mobile Bottom Sheet Cart Drawer (v-if="showMobileCartSheet" for lazy-rendering) -->
+        <div 
+          v-if="showMobileCartSheet" 
+          class="md:hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-end animate-in fade-in duration-200"
+          @click.self="showMobileCartSheet = false"
+        >
+          <div class="bg-white dark:bg-slate-900 w-full rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <!-- Sheet Drag Indicator -->
+            <div class="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto my-3 shrink-0"></div>
+            
+            <!-- Sheet Header -->
+            <div class="flex items-center justify-between px-4 pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <h4 class="font-bold text-base flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">shopping_cart</span>
+                Chi tiết giỏ hàng ({{ staffCartCount }} món)
+              </h4>
+              <button 
+                @click="showMobileCartSheet = false"
+                class="size-8 rounded-full bg-slate-100 dark:bg-slate-850 flex items-center justify-center text-slate-500 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-350"
+                aria-label="Đóng giỏ hàng"
+              >
+                <span class="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            
+            <!-- Sheet Body (Cart Items List) -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/20">
+              <div v-for="item in staffCart" :key="item.menuItemId" class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-100 dark:border-slate-700/50 shadow-sm space-y-3">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1 pr-2">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug line-clamp-2">{{ item.name }}</p>
+                    <p class="text-xs text-primary font-black mt-0.5">{{ formatCurrency(Number(item.price)) }}</p>
+                  </div>
+                  <button 
+                    @click="removeFromStaffCart(item.menuItemId)" 
+                    class="p-2 text-slate-400 hover:text-red-500 focus:text-red-500 focus:outline-none rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    aria-label="Xóa món"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                  <!-- Stepper quantity control matching customer styling and >= 44px touch targets on mobile -->
+                  <div class="flex items-center bg-slate-100 dark:bg-slate-700/70 rounded-xl p-0.5 gap-1.5">
+                    <button 
+                      class="w-11 h-11 rounded-lg flex items-center justify-center bg-white dark:bg-slate-650 text-slate-700 dark:text-slate-200 active:scale-90 shadow-sm transition-all focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                      @click="staffCartItemQty(item.menuItemId, -1)"
+                      aria-label="Giảm số lượng"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">remove</span>
+                    </button>
+                    <span class="text-sm font-black text-slate-800 dark:text-slate-200 min-w-[24px] text-center select-none">
+                      {{ item.quantity }}
+                    </span>
+                    <button 
+                      class="w-11 h-11 rounded-lg flex items-center justify-center bg-primary text-white active:scale-90 shadow-sm transition-all focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                      @click="staffCartItemQty(item.menuItemId, 1)"
+                      aria-label="Tăng số lượng"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">add</span>
+                    </button>
+                  </div>
+                  
+                  <span class="text-sm font-black text-slate-800 dark:text-slate-200">
+                    {{ formatCurrency(item.price * item.quantity) }}
+                  </span>
+                </div>
+                
+                <div class="relative flex items-center">
+                  <span class="material-symbols-outlined text-slate-400 text-xs absolute left-2.5 top-1/2 -translate-y-1/2 select-none">edit_note</span>
+                  <input 
+                    v-model="item.note" 
+                    placeholder="Ghi chú thêm cho món này..." 
+                    class="w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-2.5 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-primary/50 text-slate-800 dark:text-slate-200 min-h-[40px]" 
+                    aria-label="Ghi chú cho món"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- Sheet Footer -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 space-y-3 pb-safe">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng tạm tính</span>
+                <span class="text-lg font-black text-primary">{{ formatCurrency(staffCartTotal) }}</span>
+              </div>
+              <button 
+                @click="submitStaffOrder"
+                :disabled="staffCart.length === 0 || isSubmittingStaffOrder"
+                class="w-full py-3.5 bg-primary hover:bg-primary/95 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-primary/25 min-h-[48px] focus:ring-2 focus:ring-primary/40 focus:outline-none"
+              >
+                <span v-if="isSubmittingStaffOrder" class="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
+                <span v-else class="material-symbols-outlined text-[18px]">send</span>
+                {{ isSubmittingStaffOrder ? 'Đang gửi...' : 'Xác nhận & Gửi đơn' }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

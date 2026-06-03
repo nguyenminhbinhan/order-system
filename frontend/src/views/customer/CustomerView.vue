@@ -298,11 +298,13 @@ const handleSessionEnd = () => {
     </div>
 
     <!-- Category Tabs -->
-    <CategoryFilter 
-      :categories="categories" 
-      :activeCategoryId="activeCategoryId" 
-      @select="(id) => activeCategoryId = id" 
-    />
+    <div class="sticky top-[108px] sm:top-[115px] bg-background-light dark:bg-background-dark z-10 w-full">
+      <CategoryFilter 
+        :categories="categories" 
+        :activeCategoryId="activeCategoryId" 
+        @select="(id) => activeCategoryId = id" 
+      />
+    </div>
 
     <!-- UI State: Loading — responsive skeleton grid -->
     <div v-if="menuStore.loading" class="p-3 sm:p-4 space-y-4 animate-fade-in">

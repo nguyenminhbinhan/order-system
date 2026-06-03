@@ -5,6 +5,13 @@ import { resolveImageUrl } from '@/utils/imageUrl';
 
 const props = defineProps<{
   item: any;
+  customQty?: number;
+}>();
+
+const emit = defineEmits<{
+  (e: 'add'): void;
+  (e: 'increment'): void;
+  (e: 'decrement'): void;
 }>();
 
 const cartStore = useCartStore();
@@ -17,15 +24,26 @@ const formatCurrency = (value: number) => {
 const imageUrl = computed(() => resolveImageUrl(props.item));
 
 const cartQty = computed(() => {
+  if (props.customQty !== undefined) {
+    return props.customQty;
+  }
   const found = cartStore.items.find(i => i.id === props.item.id && !i.note);
   return found ? found.quantity : 0;
 });
 
 const addToCart = () => {
+  if (props.customQty !== undefined) {
+    emit('add');
+    return;
+  }
   cartStore.addItem({ ...props.item, price: Number(props.item.price) }, 1);
 };
 
 const increment = () => {
+  if (props.customQty !== undefined) {
+    emit('increment');
+    return;
+  }
   const existing = cartStore.items.find(i => i.id === props.item.id && !i.note);
   if (existing) {
     cartStore.updateQuantity(existing.cartItemId, existing.quantity + 1);
@@ -35,6 +53,10 @@ const increment = () => {
 };
 
 const decrement = () => {
+  if (props.customQty !== undefined) {
+    emit('decrement');
+    return;
+  }
   const existing = cartStore.items.find(i => i.id === props.item.id && !i.note);
   if (existing) {
     if (existing.quantity === 1) {
@@ -86,6 +108,9 @@ const handleImageError = (e: Event) => {
     <!-- Info — responsive padding and typography -->
     <div class="p-3 sm:p-3.5 flex-1 flex flex-col justify-between min-h-[80px]">
       <div>
+        <span v-if="item.category?.name" class="inline-block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 select-none">
+          {{ item.category.name }}
+        </span>
         <p class="text-slate-900 dark:text-slate-100 text-[13px] sm:text-sm font-bold leading-snug line-clamp-2 mb-0.5">{{ item.name }}</p>
         <p v-if="item.description" class="text-slate-400 text-[11px] leading-snug line-clamp-1 mb-1.5">{{ item.description }}</p>
       </div>

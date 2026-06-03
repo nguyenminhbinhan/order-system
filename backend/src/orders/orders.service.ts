@@ -759,8 +759,16 @@ export class OrdersService {
     const item = order.items.find(i => i.id === itemId);
     if (!item) throw new NotFoundException('Order item not found');
 
-    if (item.status !== 'pending') {
-      throw new BadRequestException('Chỉ có thể chỉnh sửa số lượng hoặc ghi chú của món chưa được xác nhận (trạng thái "Chờ xác nhận").');
+    const role = user?.role || 'customer';
+    if (role === 'customer') {
+      if (item.status !== 'pending') {
+        throw new BadRequestException('Khách hàng chỉ có thể chỉnh sửa ghi chú hoặc số lượng của món chưa được xác nhận.');
+      }
+    } else {
+      const allowedStaffStatuses = ['pending', 'confirmed'];
+      if (!allowedStaffStatuses.includes(item.status)) {
+        throw new BadRequestException('Chỉ có thể chỉnh sửa số lượng hoặc ghi chú của món ở trạng thái Chờ xác nhận hoặc Đã xác nhận (chưa nấu).');
+      }
     }
 
     if (quantity <= 0) {
