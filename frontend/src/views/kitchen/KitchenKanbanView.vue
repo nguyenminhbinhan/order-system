@@ -4,8 +4,6 @@ import { useOrderStore } from '@/stores/order.store';
 import { socketService } from '@/services/socket';
 import { useUserStore } from '@/stores/user.store';
 import { useRouter } from 'vue-router';
-import { toast } from 'vue3-toastify';
-import { orderService } from '@/services/order.service';
 
 const orderStore = useOrderStore();
 const userStore = useUserStore();
@@ -60,12 +58,12 @@ interface KitchenItem {
   menuItem?: any;
 }
 
-const allActiveItems = computed((): KitchenItem[] => {
+const confirmedItems = computed((): KitchenItem[] => {
   const itemsList: KitchenItem[] = [];
   orderStore.orderHistory.forEach(order => {
     if (order.items) {
       order.items.forEach((item: any) => {
-        if (['confirmed', 'preparing', 'ready'].includes(item.status)) {
+        if (item.status === 'confirmed') {
           itemsList.push({
             id: item.id,
             orderId: order.id,
@@ -83,30 +81,6 @@ const allActiveItems = computed((): KitchenItem[] => {
   });
   return itemsList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 });
-
-const confirmedItems = computed(() => allActiveItems.value.filter(i => i.status === 'confirmed'));
-const preparingItems = computed(() => allActiveItems.value.filter(i => i.status === 'preparing'));
-const readyItems = computed(() => allActiveItems.value.filter(i => i.status === 'ready'));
-
-const isUpdatingStatus = ref<string | null>(null);
-
-const handleUpdateItemStatus = async (orderId: string, itemId: string, newStatus: string, itemName: string) => {
-  if (isUpdatingStatus.value === itemId) return;
-  isUpdatingStatus.value = itemId;
-  try {
-    await orderService.updateItemStatus(orderId, itemId, newStatus);
-    const labels: Record<string, string> = {
-      preparing: 'Đang nấu',
-      ready: 'Hoàn thành',
-    };
-    toast.success(`✅ ${itemName} — ${labels[newStatus] || 'Cập nhật thành công'}!`);
-    await fetchData();
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
-  } finally {
-    isUpdatingStatus.value = null;
-  }
-};
 
 // ===== HISTORY (ready today) =====
 const historyOrders = computed(() => {
@@ -173,10 +147,6 @@ const getTableName = (order: any) => {
   return order.table?.name?.replace('Table', '').trim() || order.table?.number || order.tableId;
 };
 
-const formatTime = (date: string) => {
-  return new Date(date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-};
-
 const getElapsedMinutes = (date: string) => {
   return Math.floor((now.value.getTime() - new Date(date).getTime()) / 60000);
 };
@@ -201,22 +171,8 @@ const getProgressColor = (minutes: number) => {
   return 'bg-emerald-500';
 };
 
-const activeOrders = computed(() => {
-  return orderStore.orderHistory.filter(o => 
-    o.items && o.items.some((i: any) => ['confirmed', 'preparing'].includes(i.status))
-  );
-});
-
-// Total items count for active orders
-const totalActiveItems = computed(() => 
-  activeOrders.value.reduce((sum, o) => 
-    sum + (o.items?.filter((i: any) => i.status === 'confirmed').length || 0), 
-    0
-  )
-);
-
-
-
+// Total confirmed items count for header badge
+const totalActiveItems = computed(() => confirmedItems.value.length);
 
 const handleLogout = () => {
   userStore.logout();
@@ -254,7 +210,7 @@ const handleLogout = () => {
             @click="activeTab = 'active'" 
             :class="['px-3 sm:px-4 py-1.5 rounded-md text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap', activeTab === 'active' ? 'bg-orange-500/20 text-orange-400' : 'text-slate-500 hover:text-slate-300']"
           >
-            🔥 Cần nấu ({{ activeOrders.length }})
+            🔥 Chờ nấu ({{ totalActiveItems }})
           </button>
           <button 
             @click="activeTab = 'history'" 
@@ -270,11 +226,11 @@ const handleLogout = () => {
       </div>
     </header>
 
-    <!-- ===== ACTIVE ORDERS — KANBAN BOARD ===== -->
+    <!-- ===== ACTIVE ORDERS — READ-ONLY MONITORING ===== -->
     <main v-if="activeTab === 'active'" class="flex-1 overflow-hidden p-4 sm:p-6 flex flex-col">
       
       <!-- Empty State -->
-      <div v-if="allActiveItems.length === 0" class="h-full flex flex-col items-center justify-center text-slate-650 p-8 animate-fade-in">
+      <div v-if="confirmedItems.length === 0" class="h-full flex flex-col items-center justify-center text-slate-650 p-8 animate-fade-in">
         <div class="w-24 h-24 bg-emerald-500/5 rounded-full flex items-center justify-center mb-5">
           <span class="material-symbols-outlined text-6xl text-emerald-500/30" style="font-variation-settings: 'FILL' 1;">check_circle</span>
         </div>
@@ -282,17 +238,16 @@ const handleLogout = () => {
         <p class="text-sm text-slate-600 mt-1">Chờ đơn mới từ phục vụ...</p>
       </div>
 
-      <!-- Kanban Columns -->
-      <div v-else class="flex-1 flex gap-5 overflow-hidden w-full">
+      <!-- Single Column: Chờ nấu (read-only monitoring) -->
+      <div v-else class="flex-1 flex justify-center overflow-hidden w-full">
         
-        <!-- Column 1: Chờ nấu -->
-        <div class="flex-1 min-w-[280px] bg-slate-900/40 rounded-2xl border border-slate-800/80 flex flex-col overflow-hidden">
+        <div class="w-full max-w-2xl bg-slate-900/40 rounded-2xl border border-slate-800/80 flex flex-col overflow-hidden">
           <div class="p-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
               <h3 class="font-bold text-sm text-slate-200 uppercase tracking-tight">Chờ nấu ({{ confirmedItems.length }})</h3>
             </div>
-            <span class="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Queue</span>
+            <span class="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Monitoring</span>
           </div>
           
           <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
@@ -328,116 +283,13 @@ const handleLogout = () => {
                   <p class="text-xs text-red-300 font-bold leading-normal">{{ item.note }}</p>
                 </div>
               </div>
-              
-              <div class="mt-2 pt-2 border-t border-slate-800/40 flex justify-end">
-                <button
-                  @click="handleUpdateItemStatus(item.orderId, item.id, 'preparing', item.name)"
-                  :disabled="isUpdatingStatus === item.id"
-                  class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition-all shadow-md active:scale-95 disabled:opacity-50 min-h-[32px]"
-                >
-                  <span v-if="isUpdatingStatus === item.id" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
-                  <span v-else class="material-symbols-outlined text-[14px]">local_fire_department</span>
-                  Bắt đầu làm
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Column 2: Đang nấu -->
-        <div class="flex-1 min-w-[280px] bg-slate-900/40 rounded-2xl border border-slate-800/80 flex flex-col overflow-hidden">
-          <div class="p-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
-              <h3 class="font-bold text-sm text-slate-200 uppercase tracking-tight">Đang nấu ({{ preparingItems.length }})</h3>
-            </div>
-            <span class="text-[9px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Cooking</span>
-          </div>
-
-          <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-            <div v-if="preparingItems.length === 0" class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
-              <span class="material-symbols-outlined text-4xl mb-2 opacity-35">soup_kitchen</span>
-              <p class="text-xs font-bold text-slate-500">Không có món nào đang nấu</p>
-            </div>
-
-            <div 
-              v-for="item in preparingItems" :key="item.id"
-              class="bg-slate-900/95 rounded-xl p-4 border border-orange-500/20 shadow-lg flex flex-col gap-2 relative transition-all hover:border-orange-500/40"
-            >
-              <div class="flex justify-between items-start">
-                <span class="bg-orange-500/15 text-orange-400 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  Bàn {{ item.tableName }}
-                </span>
-                <span class="text-[10px] font-mono text-slate-500 font-bold flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[12px]">schedule</span>
-                  {{ getElapsedMinutes(item.createdAt) }}m
-                </span>
-              </div>
-              
-              <div class="flex-1">
-                <p class="text-base font-bold text-white leading-tight">
-                  <span class="text-lg text-orange-400 font-black mr-1">{{ item.quantity }}×</span>
-                  {{ item.name }}
-                </p>
-                <div v-if="item.note" class="mt-2 flex items-start gap-1.5 bg-red-500/15 px-2.5 py-2 rounded-lg border border-red-500/20">
-                  <span class="material-symbols-outlined text-red-400 text-[16px] mt-0.5 shrink-0" style="font-variation-settings: 'FILL' 1;">warning</span>
-                  <p class="text-xs text-red-300 font-bold leading-normal">{{ item.note }}</p>
-                </div>
-              </div>
-
-              <div class="mt-2 pt-2 border-t border-slate-800/40 flex justify-end">
-                <button
-                  @click="handleUpdateItemStatus(item.orderId, item.id, 'ready', item.name)"
-                  :disabled="isUpdatingStatus === item.id"
-                  class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition-all shadow-md active:scale-95 disabled:opacity-50 min-h-[32px]"
-                >
-                  <span v-if="isUpdatingStatus === item.id" class="material-symbols-outlined animate-spin text-[12px]">autorenew</span>
-                  <span v-else class="material-symbols-outlined text-[14px]">check</span>
-                  Hoàn thành
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Column 3: Hoàn thành -->
-        <div class="flex-1 min-w-[280px] bg-slate-900/40 rounded-2xl border border-slate-800/80 flex flex-col overflow-hidden">
-          <div class="p-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <h3 class="font-bold text-sm text-slate-200 uppercase tracking-tight">Hoàn thành ({{ readyItems.length }})</h3>
-            </div>
-            <span class="text-[9px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Done</span>
-          </div>
-
-          <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-            <div v-if="readyItems.length === 0" class="h-full flex flex-col items-center justify-center text-slate-600 py-12">
-              <span class="material-symbols-outlined text-4xl mb-2 opacity-35">check_circle</span>
-              <p class="text-xs font-bold text-slate-500">Chưa hoàn thành món nào hôm nay</p>
-            </div>
-
-            <div 
-              v-for="item in readyItems" :key="item.id"
-              class="bg-slate-900/60 rounded-xl p-4 border border-slate-800/80 shadow flex flex-col gap-2 relative transition-all opacity-60"
-            >
-              <div class="flex justify-between items-start">
-                <span class="bg-slate-800 text-slate-400 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  Bàn {{ item.tableName }}
-                </span>
-                <span class="text-[10px] font-mono text-slate-650 font-bold">
-                  {{ formatTime(item.createdAt) }}
-                </span>
-              </div>
-              
-              <div class="flex-1">
-                <p class="text-base font-bold text-slate-350 leading-tight line-through">
-                  <span class="text-lg text-slate-500 font-black mr-1">{{ item.quantity }}×</span>
-                  {{ item.name }}
-                </p>
-                <div v-if="item.note" class="mt-2 flex items-start gap-1.5 bg-slate-800/40 px-2.5 py-1.5 rounded-lg">
-                  <span class="material-symbols-outlined text-slate-500 text-[14px] mt-0.5 shrink-0">sticky_note_2</span>
-                  <p class="text-xs text-slate-500 leading-normal">{{ item.note }}</p>
-                </div>
+              <!-- Urgency progress bar (read-only visual indicator) -->
+              <div class="mt-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+                <div 
+                  :class="['h-full rounded-full transition-all', getProgressColor(getElapsedMinutes(item.createdAt))]"
+                  :style="{ width: Math.min(getElapsedMinutes(item.createdAt) / 20 * 100, 100) + '%' }"
+                ></div>
               </div>
             </div>
           </div>
